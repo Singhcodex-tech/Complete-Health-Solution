@@ -19,7 +19,7 @@ export default function ContactPage() {
             </div>
             <div>
               <p className="text-[13px] text-ink-soft">Call us 24/7</p>
-              <p className="text-[15px] font-semibold text-ink">9801717117</p>
+              <p className="text-[15px] font-semibold text-ink">1800-123-456</p>
             </div>
           </div>
           <div className="flex items-center gap-4 rounded-2xl border border-line bg-paper-raised p-5">
@@ -32,7 +32,7 @@ export default function ContactPage() {
             </div>
           </div>
           <a
-            href="https://wa.me/919801717117"
+            href="https://wa.me/911800123456"
             className="flex items-center gap-4 rounded-2xl border border-line bg-paper-raised p-5 transition-colors hover:border-accent"
           >
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft">
@@ -40,7 +40,7 @@ export default function ContactPage() {
             </div>
             <div>
               <p className="text-[13px] text-ink-soft">Chat on WhatsApp</p>
-              <p className="text-[15px] font-semibold text-ink">+91 9801717117</p>
+              <p className="text-[15px] font-semibold text-ink">+91 18001 23456</p>
             </div>
           </a>
           <div className="flex items-center gap-4 rounded-2xl border border-line bg-paper-raised p-5">
@@ -49,7 +49,7 @@ export default function ContactPage() {
             </div>
             <div>
               <p className="text-[13px] text-ink-soft">Head office</p>
-              <p className="text-[15px] font-semibold text-ink">Patna, Bihar</p>
+              <p className="text-[15px] font-semibold text-ink">Koramangala, Bengaluru</p>
             </div>
           </div>
 

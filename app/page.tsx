@@ -15,12 +15,12 @@ import {
 } from "lucide-react";
 import VitalsDivider from "@/components/VitalsDivider";
 import SectionHeading from "@/components/SectionHeading";
-import ServiceCard from "@/components/ServiceCard";
+import OfferTileCard from "@/components/OfferTileCard";
 import StatBlock from "@/components/StatBlock";
 import TestimonialCard from "@/components/TestimonialCard";
 import FaqItem from "@/components/FaqItem";
 import ContactForm from "@/components/ContactForm";
-import { services, testimonials, faqs, stats, partners } from "@/lib/data";
+import { homeOfferTiles, testimonials, faqs, stats, partners } from "@/lib/data";
 
 const whyUs = [
   {
@@ -46,8 +46,6 @@ const whyUs = [
 ];
 
 export default function Home() {
-  const featured = services.slice(0, 8);
-
   return (
     <div>
       {/* HERO */}
@@ -175,7 +173,7 @@ export default function Home() {
                   <p className="text-[13.5px] font-medium text-ink">
                     Ambulance dispatched
                   </p>
-                  <p className="text-[12px] text-ink-soft">BHARAT</p>
+                  <p className="text-[12px] text-ink-soft">Koramangala, Bengaluru</p>
                 </div>
               </div>
             </div>
@@ -200,7 +198,7 @@ export default function Home() {
           <SectionHeading
             eyebrow="What we offer"
             title="Every service your family needs"
-            description="From routine diagnostics to critical home ICU setups — 29 services, one trusted platform."
+            description="From routine diagnostics to critical home ICU setups — tap a tile to see what's inside."
           />
           <Link
             href="/services"
@@ -210,9 +208,9 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {featured.map((s, i) => (
-            <ServiceCard key={s.slug} service={s} index={i} />
+        <div className="mt-10 grid grid-cols-1 items-start gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {homeOfferTiles.map((tile, i) => (
+            <OfferTileCard key={tile.slug} tile={tile} index={i} />
           ))}
         </div>
       </section>
@@ -228,11 +226,11 @@ export default function Home() {
             />
             <div className="mt-8 grid grid-cols-2 gap-6">
               <div>
-                <p className="font-display text-2xl font-semibold text-primary">2026</p>
-                <p className="text-[13px] text-ink-soft">Founded in BHARAT</p>
+                <p className="font-display text-2xl font-semibold text-primary">2019</p>
+                <p className="text-[13px] text-ink-soft">Founded in Bengaluru</p>
               </div>
               <div>
-                <p className="font-display text-2xl font-semibold text-primary">20+</p>
+                <p className="font-display text-2xl font-semibold text-primary">40+</p>
                 <p className="text-[13px] text-ink-soft">Cities served nationwide</p>
               </div>
             </div>

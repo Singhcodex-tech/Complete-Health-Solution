@@ -67,6 +67,129 @@ export const services: Service[] = [
 
 export const serviceCategories = Array.from(new Set(services.map((s) => s.category)));
 
+export type OfferSubItem = { label: string; slug?: string };
+
+export type OfferTile = {
+  slug: string;
+  title: string;
+  icon: LucideIcon;
+  tint: "primary" | "accent";
+  description: string;
+  price?: string;
+  bookSlug: string;
+  subItems?: OfferSubItem[];
+};
+
+export const homeOfferTiles: OfferTile[] = [
+  {
+    slug: "blood-test",
+    title: "Blood Test",
+    icon: TestTube2,
+    tint: "primary",
+    description: "Certified phlebotomists collect samples at home with reports delivered digitally.",
+    price: "From ₹299",
+    bookSlug: "blood-test-booking",
+  },
+  {
+    slug: "nursing-care",
+    title: "Nursing Care",
+    icon: HeartPulse,
+    tint: "accent",
+    description: "24×7 or 12-hour nursing support plus every clinical procedure done safely at home.",
+    bookSlug: "home-nursing-care",
+    subItems: [
+      { label: "24×7 / 12 hrs Nursing Care", slug: "home-nursing-care" },
+      { label: "Foley's Catheterisation", slug: "foleys-catheterization" },
+      { label: "Ryle's Tube Insertion", slug: "ryles-tube-insertion" },
+      { label: "IV Cannulation", slug: "iv-cannulation" },
+      { label: "IV / IM / SC Injection", slug: "iv-medication" },
+      { label: "Wound Dressing", slug: "wound-dressing" },
+      { label: "Back / Bed Sore Care", slug: "bed-sore-care" },
+      { label: "Diabetic Foot Care", slug: "diabetic-foot-care" },
+      { label: "Stoma Dressing", slug: "stoma-dressing" },
+      { label: "Suture Removal", slug: "suture-removal" },
+      { label: "POP Removal", slug: "pop-removal" },
+    ],
+  },
+  {
+    slug: "other-services",
+    title: "Other Services",
+    icon: Activity,
+    tint: "primary",
+    description: "Diagnostics, rehabilitation and wellness services delivered right to your doorstep.",
+    bookSlug: "portable-xray",
+    subItems: [
+      { label: "Portable X-Ray", slug: "portable-xray" },
+      { label: "ECG at Home", slug: "ecg-at-home" },
+      { label: "Physiotherapy", slug: "physiotherapy" },
+      { label: "Nutrition & Diet Counselling", slug: "nutrition-diet-consultation" },
+      { label: "Medical Equipment Arrangement", slug: "medical-equipment-arrangement" },
+    ],
+  },
+  {
+    slug: "medical-insurance",
+    title: "Medical Insurance",
+    icon: ShieldCheck,
+    tint: "accent",
+    description: "Guidance and cashless claim support across India's leading insurers.",
+    bookSlug: "medical-insurance-assistance",
+    subItems: [
+      { label: "Acko" },
+      { label: "Star Health" },
+      { label: "Niva Bupa" },
+    ],
+  },
+  {
+    slug: "online-doctor-consultation",
+    title: "Online Doctor Consultation",
+    icon: Video,
+    tint: "primary",
+    description: "Video consultations with specialists across 20+ departments.",
+    price: "From ₹399",
+    bookSlug: "online-doctor-consultation",
+  },
+  {
+    slug: "ambulance-services",
+    title: "Ambulance Services",
+    icon: Ambulance,
+    tint: "accent",
+    description: "Road, railway and air ambulance dispatch for every emergency.",
+    bookSlug: "ambulance-services",
+    subItems: [
+      { label: "Road Ambulance" },
+      { label: "Railway Ambulance" },
+      { label: "Air Ambulance" },
+    ],
+  },
+  {
+    slug: "blood-donor",
+    title: "Blood Donor",
+    icon: Droplets,
+    tint: "primary",
+    description: "Connect with verified donors or organise donation camps quickly.",
+    price: "Free service",
+    bookSlug: "blood-donation",
+  },
+  {
+    slug: "doctor-home-visit",
+    title: "Doctor at Home Visit",
+    icon: Stethoscope,
+    tint: "accent",
+    description: "Qualified physicians visit your home for examination and treatment.",
+    price: "From ₹999",
+    bookSlug: "doctor-home-visit",
+  },
+  {
+    slug: "medicines-on-request",
+    title: "Medicines on Request",
+    icon: Pill,
+    tint: "primary",
+    description: "Prescription and OTC medicines delivered to your doorstep same-day.",
+    price: "Free above ₹499",
+    bookSlug: "medicine-delivery",
+  },
+];
+
 export type Doctor = {
   name: string;
   speciality: string;
