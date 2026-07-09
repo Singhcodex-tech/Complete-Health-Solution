@@ -57,7 +57,15 @@ export default function OfferTileCard({ tile, index = 0 }: { tile: OfferTile; in
               <ul className="mt-3 space-y-1.5 border-t border-line pt-3">
                 {tile.subItems.map((item) => (
                   <li key={item.label}>
-                    {item.slug ? (
+                    {item.href ? (
+                      <Link
+                        href={item.href}
+                        className="group flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-[13px] font-medium text-ink transition-colors hover:bg-paper hover:text-primary"
+                      >
+                        {item.label}
+                        <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-ink-soft transition-colors group-hover:text-primary" />
+                      </Link>
+                    ) : item.slug ? (
                       <Link
                         href={`/booking?service=${item.slug}`}
                         className="group flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-[13px] text-ink-soft transition-colors hover:bg-paper hover:text-primary"

@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import EmergencyButton from "@/components/EmergencyButton";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -39,10 +40,12 @@ export default function RootLayout({
       <body
         className={`${fraunces.variable} ${inter.variable} ${plexMono.variable} antialiased`}
       >
-        <Navbar />
-        <main className="pt-20">{children}</main>
-        <Footer />
-        <EmergencyButton />
+        <AuthProvider>
+          <Navbar />
+          <main className="pt-20">{children}</main>
+          <Footer />
+          <EmergencyButton />
+        </AuthProvider>
       </body>
     </html>
   );

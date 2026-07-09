@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, PhoneCall } from "lucide-react";
+import { Menu, X, PhoneCall, User, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const links = [
   { href: "/services", label: "Services" },
@@ -19,6 +20,7 @@ const links = [
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { user, logout, loading } = useAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -66,6 +68,36 @@ export default function Navbar() {
             <PhoneCall className="h-4 w-4" />
             1800-123-456
           </a>
+
+          {!loading && user ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-full border border-line py-1.5 pl-1.5 pr-3.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-soft text-[12px] font-semibold text-primary">
+                  {user.full_name.charAt(0).toUpperCase()}
+                </div>
+                <span className="max-w-[110px] truncate text-[13.5px] font-medium text-ink">
+                  {user.full_name.split(" ")[0]}
+                </span>
+              </div>
+              <button
+                onClick={logout}
+                aria-label="Log out"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-soft hover:border-emergency hover:text-emergency"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            !loading && (
+              <Link
+                href="/login"
+                className="flex items-center gap-1.5 text-[14.5px] font-medium text-ink-soft hover:text-primary"
+              >
+                <User className="h-4 w-4" /> Log In
+              </Link>
+            )
+          )}
+
           <Link
             href="/booking"
             className="rounded-full bg-primary px-5 py-2.5 text-[14.5px] font-semibold text-white shadow-sm shadow-primary/30 transition-transform hover:scale-[1.03] hover:bg-primary-dark"
@@ -103,6 +135,35 @@ export default function Navbar() {
                   {l.label}
                 </Link>
               ))}
+              {!loading && user ? (
+                <div className="mt-2 flex items-center justify-between rounded-lg border border-line px-3 py-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-soft text-[12px] font-semibold text-primary">
+                      {user.full_name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-[14px] font-medium text-ink">
+                      {user.full_name}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setOpen(false);
+                    }}
+                    className="text-[13px] font-semibold text-emergency"
+                  >
+                    Log out
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setOpen(false)}
+                  className="mt-2 rounded-lg px-3 py-2.5 text-[15px] font-medium text-ink-soft hover:bg-primary-soft hover:text-primary"
+                >
+                  Log In / Sign Up
+                </Link>
+              )}
               <Link
                 href="/booking"
                 onClick={() => setOpen(false)}

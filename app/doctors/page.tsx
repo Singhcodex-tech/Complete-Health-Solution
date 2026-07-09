@@ -1,19 +1,91 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Search, Star, Video, Globe2, BriefcaseMedical } from "lucide-react";
+import { Search, Star, Video, Globe2, BriefcaseMedical, WifiOff } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
-import { doctors } from "@/lib/data";
+import { doctors as fallbackDoctors } from "@/lib/data";
+import { api, type Doctor as ApiDoctor } from "@/lib/api";
+
+type DisplayDoctor = {
+  id: string;
+  name: string;
+  initials: string;
+  speciality: string;
+  experience: string;
+  languages: string[];
+  rating: number;
+  online: boolean;
+  fee: string;
+};
+
+function fromApi(d: ApiDoctor): DisplayDoctor {
+  const name = d.user.full_name;
+  return {
+    id: d.id,
+    name,
+    initials: name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
+    speciality: d.speciality,
+    experience: `${d.experience_years} yrs experience`,
+    languages: d.languages.split(",").map((l) => l.trim()).filter(Boolean),
+    rating: d.rating,
+    online: d.is_online,
+    fee: d.consultation_fee ? `₹${d.consultation_fee}` : "Contact for pricing",
+  };
+}
+
+function fromFallback(d: (typeof fallbackDoctors)[number], i: number): DisplayDoctor {
+  return {
+    id: `sample-${i}`,
+    name: d.name,
+    initials: d.initials,
+    speciality: d.speciality,
+    experience: d.experience,
+    languages: d.languages,
+    rating: d.rating,
+    online: d.online,
+    fee: d.fee,
+  };
+}
 
 export default function DoctorsPage() {
   const [query, setQuery] = useState("");
   const [onlineOnly, setOnlineOnly] = useState(false);
-  const specialities = Array.from(new Set(doctors.map((d) => d.speciality)));
   const [speciality, setSpeciality] = useState("All");
 
+  const [liveDoctors, setLiveDoctors] = useState<DisplayDoctor[] | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.doctors
+      .list()
+      .then((data) => {
+        if (cancelled) return;
+        setLiveDoctors(data.map(fromApi));
+        setUsingFallback(data.length === 0);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setUsingFallback(true);
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const allDoctors: DisplayDoctor[] =
+    liveDoctors && liveDoctors.length > 0
+      ? liveDoctors
+      : fallbackDoctors.map(fromFallback);
+
+  const specialities = Array.from(new Set(allDoctors.map((d) => d.speciality)));
+
   const filtered = useMemo(() => {
-    return doctors.filter((d) => {
+    return allDoctors.filter((d) => {
       const matchesQuery =
         d.name.toLowerCase().includes(query.toLowerCase()) ||
         d.speciality.toLowerCase().includes(query.toLowerCase());
@@ -21,7 +93,8 @@ export default function DoctorsPage() {
       const matchesOnline = !onlineOnly || d.online;
       return matchesQuery && matchesSpeciality && matchesOnline;
     });
-  }, [query, speciality, onlineOnly]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, speciality, onlineOnly, liveDoctors]);
 
   return (
     <div className="mx-auto max-w-7xl px-5 py-16 md:px-8">
@@ -30,6 +103,14 @@ export default function DoctorsPage() {
         title="Find the right specialist"
         description="Search by name or speciality, filter by availability and book an in-person or video consultation."
       />
+
+      {!loading && usingFallback && (
+        <div className="mt-6 flex items-center gap-2.5 rounded-xl border border-line bg-paper px-4 py-3 text-[13px] text-ink-soft">
+          <WifiOff className="h-4 w-4 shrink-0" />
+          Showing sample doctors — couldn&apos;t reach the backend API, so live
+          data isn&apos;t available right now.
+        </div>
+      )}
 
       <div className="mt-8 flex flex-col gap-3 rounded-2xl border border-line bg-paper-raised p-4 sm:flex-row sm:items-center">
         <div className="flex flex-1 items-center gap-2.5 rounded-xl border border-line px-3.5 py-2.5">
@@ -65,7 +146,7 @@ export default function DoctorsPage() {
       <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((d, i) => (
           <motion.div
-            key={d.name}
+            key={d.id}
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -98,9 +179,11 @@ export default function DoctorsPage() {
               <span className="flex items-center gap-1.5">
                 <Star className="h-3.5 w-3.5 fill-accent text-accent" /> {d.rating}
               </span>
-              <span className="flex items-center gap-1.5">
-                <Globe2 className="h-3.5 w-3.5" /> {d.languages.join(", ")}
-              </span>
+              {d.languages.length > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Globe2 className="h-3.5 w-3.5" /> {d.languages.join(", ")}
+                </span>
+              )}
             </div>
 
             <div className="mt-5 flex items-center justify-between border-t border-line pt-4">
@@ -108,9 +191,12 @@ export default function DoctorsPage() {
                 <p className="text-[11px] text-ink-soft">Consultation fee</p>
                 <p className="font-mono-tight text-[14px] font-semibold text-ink">{d.fee}</p>
               </div>
-              <button className="rounded-full bg-primary px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-primary-dark">
+              <Link
+                href="/booking?service=online-doctor-consultation"
+                className="rounded-full bg-primary px-5 py-2.5 text-[13px] font-semibold text-white hover:bg-primary-dark"
+              >
                 Book Appointment
-              </button>
+              </Link>
             </div>
           </motion.div>
         ))}
