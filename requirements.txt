@@ -1,0 +1,13 @@
+fastapi==0.139.0
+uvicorn[standard]==0.50.0
+sqlalchemy==2.0.51
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+python-multipart==0.0.32
+pydantic==2.13.4
+pydantic-settings==2.14.2
+email-validator==2.3.0
+
+# PostgreSQL driver — needed only when DATABASE_URL points to Postgres
+psycopg2-binary==2.9.10
