@@ -29,6 +29,13 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3002",
     ]
 
+    # Bulk price upload limits
+    PRICE_UPLOAD_MAX_MB: int = 10
+    # Reverse geocoding (GPS -> pin code). Nominatim policy wants a real contact in the UA.
+    GEOCODER_URL: str = "https://nominatim.openstreetmap.org/reverse"
+    GEOCODER_USER_AGENT: str = "HealthCarePlus/1.0 (contact: admin@healthcareplus.example)"
+    PRICE_UPLOAD_MAX_ERRORS_RETURNED: int = 5000
+
     # File uploads (Cloudinary-compatible — plug real keys in later)
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""

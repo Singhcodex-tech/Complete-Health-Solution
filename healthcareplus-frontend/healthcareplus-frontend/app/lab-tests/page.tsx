@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { TestTube2, Clock, FileUp } from "lucide-react";
+import { TestTube2, Clock, FileUp, Scale } from "lucide-react";
 import SectionHeading from "@/components/SectionHeading";
 import { labTests } from "@/lib/data";
 
@@ -25,6 +25,19 @@ export default function LabTestsPage() {
         <button className="rounded-full bg-primary-soft px-5 py-2.5 text-[13.5px] font-semibold text-primary hover:bg-primary/10">
           Upload Prescription
         </button>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-line bg-paper-raised p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <Scale className="h-5 w-5 text-primary" />
+          <p className="text-[14px] text-ink">Compare a test&apos;s price across labs near your pin code.</p>
+        </div>
+        <Link
+          href="/price-search"
+          className="rounded-full bg-primary-soft px-5 py-2.5 text-center text-[13.5px] font-semibold text-primary hover:bg-primary/10"
+        >
+          Compare Prices
+        </Link>
       </div>
 
       <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

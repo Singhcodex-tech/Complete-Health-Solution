@@ -3,102 +3,94 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Check, ShoppingCart, ArrowLeft, WifiOff, LayoutDashboard, ChevronLeft, ChevronRight } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import {
-  labCompanies as fallbackCompanies,
-  commonCategories,
-  getTestComparison,
-  type TestComparisonRow,
-  LAB_SELECTION_STORAGE_KEY,
-  type StoredLabSelection,
-} from "@/lib/data";
-import { api, type LabCompany as ApiLabCompany } from "@/lib/api";
+  Search,
+  Check,
+  ShoppingCart,
+  ArrowLeft,
+  LayoutDashboard,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  MapPin,
+  FlaskConical,
+} from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "@/contexts/LocationContext";
+import LocationChip from "@/components/LocationChip";
+import { LAB_SELECTION_STORAGE_KEY, type StoredLabSelection } from "@/lib/data";
+import { api, type CompareBranch, type CompareRow } from "@/lib/api";
 
-type SelectedKey = string; // `${companySlug}::${testName}`
+type SelectedKey = string; // `${labId}::${testId}`
 
-function comparisonFromApi(companies: ApiLabCompany[]): {
-  rows: TestComparisonRow[];
-  companies: { slug: string; name: string; id: string }[];
-} {
-  const rowMap = new Map<string, TestComparisonRow>();
-  for (const company of companies) {
-    for (const test of company.tests) {
-      const existing = rowMap.get(test.name);
-      const offer = {
-        companySlug: company.slug,
-        companyName: company.name,
-        companyId: company.id,
-        testId: test.id,
-        price: test.price,
-        turnaround: test.turnaround,
-      };
-      if (existing) existing.offers.push(offer);
-      else rowMap.set(test.name, { testName: test.name, category: test.category, offers: [offer] });
-    }
-  }
-  return {
-    rows: Array.from(rowMap.values()),
-    companies: companies.map((c) => ({ slug: c.slug, name: c.name, id: c.id })),
-  };
-}
-
+const DEFAULT_CATEGORIES = ["Diabetes", "Thyroid", "Liver Function", "Kidney Function", "Vitamins", "Cardiac", "Full Body"];
+const PAGE_SIZE = 30;
+const LABS_PER_PAGE = 6;
 
 export default function LabComparePage() {
   const { user } = useAuth();
-  const [liveRows, setLiveRows] = useState<TestComparisonRow[] | null>(null);
-  const [liveCompanyList, setLiveCompanyList] = useState<
-    { slug: string; name: string; id: string }[] | null
-  >(null);
-  const [usingFallback, setUsingFallback] = useState(false);
+  const loc = useLocation();
+  const pin = loc.pin;
+
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [category, setCategory] = useState("All");
+  const [page, setPage] = useState(1);
+
+  const [branches, setBranches] = useState<CompareBranch[]>([]);
+  const [rows, setRows] = useState<CompareRow[]>([]);
+  const [totalTests, setTotalTests] = useState(0);
+  const [categoryList, setCategoryList] = useState<string[]>(DEFAULT_CATEGORIES);
+  const [loading, setLoading] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<SelectedKey>>(new Set());
+  const [labsPage, setLabsPage] = useState(0);
 
   useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  // Different pin = different labs, so a basket from the old area no longer applies.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset when the location changes
+    setSelected(new Set());
+    setPage(1);
+    setLabsPage(0);
+  }, [pin]);
+
+  useEffect(() => {
+    if (!pin) return;
     let cancelled = false;
-    api.labs
-      .list()
-      .then((data) => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag for the fetch below
+    setLoading(true);
+    setLoadError(null);
+    api.prices
+      .compare(pin, { q: debouncedQuery, category, page, pageSize: PAGE_SIZE })
+      .then((d) => {
         if (cancelled) return;
-        if (data.length === 0) {
-          setUsingFallback(true);
-          return;
-        }
-        const { rows, companies } = comparisonFromApi(data);
-        setLiveRows(rows);
-        setLiveCompanyList(companies);
+        setBranches(d.branches);
+        setRows((prev) => (d.page === 1 ? d.rows : [...prev, ...d.rows]));
+        setTotalTests(d.total_tests);
+        setCategoryList(d.categories);
+        setLoadedFor(pin);
       })
-      .catch(() => !cancelled && setUsingFallback(true));
+      .catch(() => !cancelled && setLoadError("Couldn't load labs right now. Please try again."))
+      .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pin, debouncedQuery, category, page]);
 
-  const rows = liveRows ?? (usingFallback ? getTestComparison() : []);
-  const companyList =
-    liveCompanyList ?? (usingFallback ? fallbackCompanies.map((c) => ({ slug: c.slug, name: c.name })) : []);
+  const categories = useMemo(() => ["All", ...categoryList], [categoryList]);
+  const hasData = !!pin && loadedFor === pin;
+  const totalLabPages = Math.max(1, Math.ceil(branches.length / LABS_PER_PAGE));
+  const safeLabsPage = Math.min(labsPage, totalLabPages - 1);
+  const visibleBranches = branches.slice(safeLabsPage * LABS_PER_PAGE, safeLabsPage * LABS_PER_PAGE + LABS_PER_PAGE);
 
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
-  const [selected, setSelected] = useState<Set<SelectedKey>>(new Set());
-
-  const categories = useMemo(
-    () => ["All", ...commonCategories.filter((c) => rows.some((r) => r.category === c))],
-    [rows]
-  );
-
-  const filteredRows = useMemo(() => {
-    const q = query.toLowerCase();
-    return rows.filter((r) => {
-      const matchesCategory = category === "All" || r.category === category;
-      const matchesQuery =
-        !q ||
-        r.testName.toLowerCase().includes(q) ||
-        r.offers.some((o) => o.companyName.toLowerCase().includes(q));
-      return matchesCategory && matchesQuery;
-    });
-  }, [rows, query, category]);
-
-  const toggleSelection = (companySlug: string, testName: string) => {
-    const key: SelectedKey = `${companySlug}::${testName}`;
+  const toggleSelection = (labId: string, testId: string) => {
+    const key: SelectedKey = `${labId}::${testId}`;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -107,54 +99,46 @@ export default function LabComparePage() {
     });
   };
 
-  const selectedList = Array.from(selected).map((key) => {
-    const [companySlug, testName] = key.split("::");
-    const company = companyList.find((c) => c.slug === companySlug);
-    const row = rows.find((r) => r.testName === testName);
-    const offer = row?.offers.find((o) => o.companySlug === companySlug);
-    return {
-      companySlug,
-      companyName: company?.name ?? companySlug,
-      companyId: offer?.companyId,
-      testId: offer?.testId,
-      testName,
-      price: offer?.price ?? 0,
-    };
-  });
+  const selectedList = useMemo(() => {
+    const out: StoredLabSelection[] = [];
+    for (const key of selected) {
+      const [labId, testId] = key.split("::");
+      const branch = branches.find((b) => b.id === labId);
+      const row = rows.find((r) => r.test_id === testId);
+      const price = row?.prices[labId];
+      if (!branch || !row || price === undefined) continue;
+      out.push({
+        companyId: labId,
+        companyName: `${branch.name} (${branch.pin_code})`,
+        testId,
+        testName: row.test_name,
+        price,
+        source: "branch",
+      });
+    }
+    return out;
+  }, [selected, branches, rows]);
 
   const total = selectedList.reduce((sum, s) => sum + s.price, 0);
 
-  const activeCompanies = companyList;
-
-  const LABS_PER_PAGE = 6;
-  const [labsPage, setLabsPage] = useState(0);
-  const totalLabPages = Math.max(1, Math.ceil(activeCompanies.length / LABS_PER_PAGE));
-
-  // Keep the page in range whenever the active-lab set (or its size) changes.
-  useEffect(() => {
-    setLabsPage((p) => Math.min(p, totalLabPages - 1));
-  }, [totalLabPages]);
-
-  const visibleCompanies = activeCompanies.slice(
-    labsPage * LABS_PER_PAGE,
-    labsPage * LABS_PER_PAGE + LABS_PER_PAGE
-  );
-
-  const canCheckout = selectedList.every((s) => s.companyId && s.testId);
-
   const handleProceed = () => {
-    if (typeof window === "undefined") return;
-    const payload: StoredLabSelection[] = selectedList
-      .filter((s): s is typeof s & { companyId: string; testId: string } => Boolean(s.companyId && s.testId))
-      .map((s) => ({
-        companyId: s.companyId,
-        companyName: s.companyName,
-        testId: s.testId,
-        testName: s.testName,
-        price: s.price,
-      }));
-    window.sessionStorage.setItem(LAB_SELECTION_STORAGE_KEY, JSON.stringify(payload));
+    window.sessionStorage.setItem(LAB_SELECTION_STORAGE_KEY, JSON.stringify(selectedList));
   };
+
+  const initialLoading = !!pin && loading && !hasData;
+  const noLabsHere = hasData && !loading && branches.length === 0;
+  const noTestMatches = hasData && branches.length > 0 && rows.length === 0 && !loading;
+  const showTable = hasData && branches.length > 0;
+
+  const branchHeader = (b: CompareBranch) => (
+    <>
+      <span className="block">{b.name}</span>
+      <span className="mt-0.5 block font-mono-tight text-[11px] normal-case tracking-normal text-ink-soft/80">
+        {b.pin_code}
+        {b.match === "exact" && <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] text-accent">your pin</span>}
+      </span>
+    </>
+  );
 
   return (
     <div className="pb-28">
@@ -184,16 +168,10 @@ export default function LabComparePage() {
               Every lab, every price, side by side
             </h1>
             <p className="mt-1.5 text-[13px] leading-snug text-ink-soft sm:text-[14px]">
-              Search a test or a lab, filter by category, then tick the boxes to build a booking across any combination of labs.
+              Labs and prices for your area. Search a test, filter by category, then tick the boxes to build a booking across any combination of local labs.
             </p>
+            <LocationChip className="mt-2.5" />
           </div>
-          {usingFallback && (
-            <div className="mt-3 flex items-center gap-2.5 rounded-xl border border-line bg-paper px-4 py-3 text-[13px] text-ink-soft">
-              <WifiOff className="h-4 w-4 shrink-0" />
-              Showing sample data — couldn&apos;t reach the backend API, so
-              live prices aren&apos;t available right now.
-            </div>
-          )}
         </div>
       </section>
 
@@ -204,9 +182,12 @@ export default function LabComparePage() {
             <Search className="h-4.5 w-4.5 text-ink-soft" />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(1);
+              }}
               type="text"
-              placeholder="Search a test or a lab…"
+              placeholder="Search a test…"
               className="w-full bg-transparent text-[14px] outline-none placeholder:text-ink-soft/70"
             />
           </div>
@@ -216,7 +197,10 @@ export default function LabComparePage() {
           {categories.map((cat) => (
             <button
               key={cat}
-              onClick={() => setCategory(cat)}
+              onClick={() => {
+                setCategory(cat);
+                setPage(1);
+              }}
               className={`rounded-full border px-4 py-2 text-[13px] font-medium transition-colors ${
                 category === cat
                   ? "border-primary bg-primary text-white"
@@ -228,178 +212,191 @@ export default function LabComparePage() {
           ))}
         </div>
 
-        {/* Comparison table */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[12.5px] text-ink-soft">
-            Showing{" "}
-            <span className="font-medium text-ink">
-              {activeCompanies.length === 0 ? 0 : labsPage * LABS_PER_PAGE + 1}
-              –
-              {Math.min(labsPage * LABS_PER_PAGE + LABS_PER_PAGE, activeCompanies.length)}
-            </span>{" "}
-            of <span className="font-medium text-ink">{activeCompanies.length}</span> labs
-          </p>
-          {totalLabPages > 1 && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setLabsPage((p) => Math.max(0, p - 1))}
-                disabled={labsPage === 0}
-                className="flex items-center gap-1 rounded-full border border-line px-3 py-1.5 text-[12.5px] font-medium text-ink-soft hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink-soft"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" /> Previous
-              </button>
-              <span className="text-[12.5px] text-ink-soft">
-                Page {labsPage + 1} of {totalLabPages}
-              </span>
-              <button
-                onClick={() => setLabsPage((p) => Math.min(totalLabPages - 1, p + 1))}
-                disabled={labsPage >= totalLabPages - 1}
-                className="flex items-center gap-1 rounded-full border border-line px-3 py-1.5 text-[12.5px] font-medium text-ink-soft hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line disabled:hover:text-ink-soft"
-              >
-                Next <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-2 hidden overflow-x-auto rounded-2xl border border-line bg-paper-raised sm:block">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="border-b border-line bg-paper">
-                <th className="sticky left-0 z-10 bg-paper px-5 py-3.5 text-[12.5px] font-semibold uppercase tracking-wide text-ink-soft">
-                  Test
-                </th>
-                {visibleCompanies.map((c) => (
-                  <th
-                    key={c.slug}
-                    className="min-w-[150px] px-4 py-3.5 text-[12.5px] font-semibold uppercase tracking-wide text-ink-soft"
+        {!loc.ready || initialLoading ? (
+          <div className="mt-10 flex justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : !pin ? (
+          <div className="mx-auto mt-10 max-w-md rounded-2xl border border-line bg-paper-raised p-8 text-center">
+            <MapPin className="mx-auto h-7 w-7 text-primary" />
+            <h2 className="mt-3 font-display text-lg font-semibold text-ink">Tell us where you are</h2>
+            <p className="mt-1.5 text-[13.5px] text-ink-soft">
+              Labs and prices depend on your area. Share your location or enter your pin code.
+            </p>
+            <button onClick={loc.openPrompt} className="mt-5 rounded-full bg-primary px-6 py-2.5 text-[14px] font-semibold text-white hover:bg-primary-dark">
+              Set my location
+            </button>
+          </div>
+        ) : loadError && !hasData ? (
+          <p className="mt-10 text-center text-[14px] text-emergency">{loadError}</p>
+        ) : noLabsHere ? (
+          <div className="mx-auto mt-10 max-w-md rounded-2xl border border-line bg-paper-raised p-8 text-center">
+            <FlaskConical className="mx-auto h-7 w-7 text-primary" />
+            <h2 className="mt-3 font-display text-lg font-semibold text-ink">No partner labs near {pin} yet</h2>
+            <p className="mt-1.5 text-[13.5px] text-ink-soft">
+              We&apos;re adding local labs area by area. Try a nearby pin code.
+            </p>
+            <button onClick={loc.openPrompt} className="mt-5 rounded-full border border-primary/30 bg-primary-soft px-6 py-2.5 text-[14px] font-semibold text-primary hover:bg-primary/10">
+              Change location
+            </button>
+          </div>
+        ) : showTable ? (
+          <>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[12.5px] text-ink-soft">
+                Showing{" "}
+                <span className="font-medium text-ink">
+                  {safeLabsPage * LABS_PER_PAGE + 1}–{Math.min(safeLabsPage * LABS_PER_PAGE + LABS_PER_PAGE, branches.length)}
+                </span>{" "}
+                of <span className="font-medium text-ink">{branches.length}</span> labs near{" "}
+                <span className="font-mono-tight font-medium text-ink">{pin}</span>
+              </p>
+              {totalLabPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setLabsPage((p) => Math.max(0, p - 1))}
+                    disabled={safeLabsPage === 0}
+                    className="flex items-center gap-1 rounded-full border border-line px-3 py-1.5 text-[12.5px] font-medium text-ink-soft hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    {c.name}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((row, i) => (
-                <tr
-                  key={row.testName}
-                  className={`border-b border-line last:border-0 ${i % 2 === 1 ? "bg-paper/50" : ""}`}
-                >
-                  <td className="sticky left-0 z-10 bg-paper-raised px-5 py-4">
-                    <p className="text-[14px] font-medium text-ink">{row.testName}</p>
-                    <span className="mt-1 inline-block rounded-full bg-paper px-2 py-0.5 text-[11px] text-ink-soft">
-                      {row.category}
-                    </span>
-                  </td>
-                  {visibleCompanies.map((c) => {
-                    const offer = row.offers.find((o) => o.companySlug === c.slug);
-                    if (!offer) {
+                    <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                  </button>
+                  <span className="text-[12.5px] text-ink-soft">
+                    Page {safeLabsPage + 1} of {totalLabPages}
+                  </span>
+                  <button
+                    onClick={() => setLabsPage((p) => Math.min(totalLabPages - 1, p + 1))}
+                    disabled={safeLabsPage >= totalLabPages - 1}
+                    className="flex items-center gap-1 rounded-full border border-line px-3 py-1.5 text-[12.5px] font-medium text-ink-soft hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-2 hidden overflow-x-auto rounded-2xl border border-line bg-paper-raised sm:block">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-line bg-paper">
+                    <th className="sticky left-0 z-10 bg-paper px-5 py-3.5 text-[12.5px] font-semibold uppercase tracking-wide text-ink-soft">
+                      Test
+                    </th>
+                    {visibleBranches.map((b) => (
+                      <th key={b.id} className="min-w-[150px] px-4 py-3.5 text-[12.5px] font-semibold uppercase tracking-wide text-ink-soft">
+                        {branchHeader(b)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, i) => (
+                    <tr key={row.test_id} className={`border-b border-line last:border-0 ${i % 2 === 1 ? "bg-paper/50" : ""}`}>
+                      <td className="sticky left-0 z-10 bg-paper-raised px-5 py-4">
+                        <p className="text-[14px] font-medium text-ink">{row.test_name}</p>
+                        <span className="mt-1 inline-block rounded-full bg-paper px-2 py-0.5 text-[11px] text-ink-soft">{row.category}</span>
+                      </td>
+                      {visibleBranches.map((b) => {
+                        const price = row.prices[b.id];
+                        if (price === undefined) {
+                          return (
+                            <td key={b.id} className="px-4 py-4 text-center text-[13px] text-ink-soft/40">
+                              —
+                            </td>
+                          );
+                        }
+                        const isSelected = selected.has(`${b.id}::${row.test_id}`);
+                        return (
+                          <td key={b.id} className="px-4 py-4">
+                            <button
+                              onClick={() => toggleSelection(b.id, row.test_id)}
+                              className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 transition-colors ${
+                                isSelected ? "border-primary bg-primary-soft" : "border-line hover:border-primary/40"
+                              }`}
+                            >
+                              <span className="font-mono-tight text-[13px] font-semibold text-ink">₹{price}</span>
+                              <span
+                                className={`flex h-4.5 w-4.5 items-center justify-center rounded-[5px] border-2 ${
+                                  isSelected ? "border-primary bg-primary text-white" : "border-line"
+                                }`}
+                              >
+                                {isSelected && <Check className="h-3 w-3" />}
+                              </span>
+                            </button>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  {noTestMatches && (
+                    <tr>
+                      <td colSpan={visibleBranches.length + 1} className="px-5 py-10 text-center text-[14px] text-ink-soft">
+                        No tests match your search.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile: card per test with a scrollable price strip */}
+            <div className="mt-2 space-y-2.5 sm:hidden">
+              {rows.map((row) => (
+                <div key={row.test_id} className="rounded-2xl border border-line bg-paper-raised p-3.5">
+                  <p className="text-[13.5px] font-medium text-ink">{row.test_name}</p>
+                  <span className="mt-1 inline-block rounded-full bg-paper px-2 py-0.5 text-[11px] text-ink-soft">{row.category}</span>
+                  <div className="mt-2.5 -mx-3.5 flex gap-2 overflow-x-auto px-3.5 pb-0.5">
+                    {visibleBranches.map((b) => {
+                      const price = row.prices[b.id];
+                      if (price === undefined) {
+                        return (
+                          <div key={b.id} className="shrink-0 rounded-xl border border-line px-3 py-2 text-center">
+                            <p className="max-w-[90px] truncate text-[10.5px] font-medium text-ink-soft">{b.name}</p>
+                            <p className="mt-1 text-[13px] text-ink-soft/40">—</p>
+                          </div>
+                        );
+                      }
+                      const isSelected = selected.has(`${b.id}::${row.test_id}`);
                       return (
-                        <td key={c.slug} className="px-4 py-4 text-center text-[13px] text-ink-soft/40">
-                          —
-                        </td>
-                      );
-                    }
-                    const key: SelectedKey = `${c.slug}::${row.testName}`;
-                    const isSelected = selected.has(key);
-                    return (
-                      <td key={c.slug} className="px-4 py-4">
                         <button
-                          onClick={() => toggleSelection(c.slug, row.testName)}
-                          className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 transition-colors ${
-                            isSelected
-                              ? "border-primary bg-primary-soft"
-                              : "border-line hover:border-primary/40"
+                          key={b.id}
+                          onClick={() => toggleSelection(b.id, row.test_id)}
+                          className={`shrink-0 rounded-xl border px-3 py-2 text-center transition-colors ${
+                            isSelected ? "border-primary bg-primary-soft" : "border-line"
                           }`}
                         >
-                          <span className="font-mono-tight text-[13px] font-semibold text-ink">
-                            ₹{offer.price}
-                          </span>
-                          <span
-                            className={`flex h-4.5 w-4.5 items-center justify-center rounded-[5px] border-2 ${
-                              isSelected ? "border-primary bg-primary text-white" : "border-line"
-                            }`}
-                          >
-                            {isSelected && <Check className="h-3 w-3" />}
-                          </span>
+                          <p className="max-w-[90px] truncate text-[10.5px] font-medium text-ink-soft">{b.name}</p>
+                          <p className="font-mono-tight text-[9.5px] text-ink-soft/70">{b.pin_code}</p>
+                          <div className="mt-1 flex items-center justify-center gap-1">
+                            <span className="font-mono-tight text-[13px] font-semibold text-ink">₹{price}</span>
+                            {isSelected && <Check className="h-3 w-3 shrink-0 text-primary" />}
+                          </div>
                         </button>
-                      </td>
-                    );
-                  })}
-                </tr>
+                      );
+                    })}
+                  </div>
+                </div>
               ))}
-
-              {filteredRows.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={visibleCompanies.length + 1}
-                    className="px-5 py-10 text-center text-[14px] text-ink-soft"
-                  >
-                    No tests match your search.
-                  </td>
-                </tr>
+              {noTestMatches && (
+                <p className="rounded-2xl border border-line bg-paper-raised px-5 py-10 text-center text-[14px] text-ink-soft">
+                  No tests match your search.
+                </p>
               )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile: card list with a horizontally scrollable price strip per test —
-            avoids a wide table where only the "Test" column is visible with no scroll cue. */}
-        <div className="mt-2 space-y-2.5 sm:hidden">
-          {filteredRows.map((row) => (
-            <div key={row.testName} className="rounded-2xl border border-line bg-paper-raised p-3.5">
-              <p className="text-[13.5px] font-medium text-ink">{row.testName}</p>
-              <span className="mt-1 inline-block rounded-full bg-paper px-2 py-0.5 text-[11px] text-ink-soft">
-                {row.category}
-              </span>
-              <div className="mt-2.5 -mx-3.5 flex gap-2 overflow-x-auto px-3.5 pb-0.5">
-                {visibleCompanies.map((c) => {
-                  const offer = row.offers.find((o) => o.companySlug === c.slug);
-                  if (!offer) {
-                    return (
-                      <div
-                        key={c.slug}
-                        className="shrink-0 rounded-xl border border-line px-3 py-2 text-center"
-                      >
-                        <p className="max-w-[90px] truncate text-[10.5px] font-medium text-ink-soft">
-                          {c.name}
-                        </p>
-                        <p className="mt-1 text-[13px] text-ink-soft/40">—</p>
-                      </div>
-                    );
-                  }
-                  const key: SelectedKey = `${c.slug}::${row.testName}`;
-                  const isSelected = selected.has(key);
-                  return (
-                    <button
-                      key={c.slug}
-                      onClick={() => toggleSelection(c.slug, row.testName)}
-                      className={`shrink-0 rounded-xl border px-3 py-2 text-center transition-colors ${
-                        isSelected ? "border-primary bg-primary-soft" : "border-line"
-                      }`}
-                    >
-                      <p className="max-w-[90px] truncate text-[10.5px] font-medium text-ink-soft">
-                        {c.name}
-                      </p>
-                      <div className="mt-1 flex items-center justify-center gap-1">
-                        <span className="font-mono-tight text-[13px] font-semibold text-ink">
-                          ₹{offer.price}
-                        </span>
-                        {isSelected && <Check className="h-3 w-3 shrink-0 text-primary" />}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
-          ))}
 
-          {filteredRows.length === 0 && (
-            <p className="rounded-2xl border border-line bg-paper-raised px-5 py-10 text-center text-[14px] text-ink-soft">
-              No tests match your search.
-            </p>
-          )}
-        </div>
+            {rows.length < totalTests && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={loading}
+                  className="flex items-center gap-2 rounded-full border border-line bg-paper-raised px-6 py-2.5 text-[13.5px] font-medium text-ink hover:border-primary hover:text-primary disabled:opacity-60"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Load more tests ({rows.length} of {totalTests})
+                </button>
+              </div>
+            )}
+          </>
+        ) : null}
       </section>
 
       <AnimatePresence>
@@ -425,19 +422,8 @@ export default function LabComparePage() {
               </div>
               <Link
                 href="/lab-tests/order"
-                onClick={(e) => {
-                  if (!canCheckout) {
-                    e.preventDefault();
-                    return;
-                  }
-                  handleProceed();
-                }}
-                aria-disabled={!canCheckout}
-                className={`w-full rounded-full px-7 py-3 text-center text-[14px] font-semibold text-white transition-colors sm:w-auto ${
-                  canCheckout
-                    ? "bg-primary hover:bg-primary-dark"
-                    : "cursor-not-allowed bg-ink-soft/40"
-                }`}
+                onClick={handleProceed}
+                className="w-full rounded-full bg-primary px-7 py-3 text-center text-[14px] font-semibold text-white transition-colors hover:bg-primary-dark sm:w-auto"
               >
                 Proceed to Book
               </Link>

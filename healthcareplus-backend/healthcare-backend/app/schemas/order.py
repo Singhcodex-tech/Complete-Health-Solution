@@ -1,16 +1,28 @@
 from datetime import date, datetime, time
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.order import OrderStatus, OTPPurpose
 
 
+class BranchItem(BaseModel):
+    lab_id: str
+    test_id: str
+
+
 class OrderCreate(BaseModel):
-    lab_test_ids: list[str] = Field(min_length=1)
+    lab_test_ids: list[str] = []  # legacy company-level tests
+    branch_items: list[BranchItem] = []  # pin-code branch prices
     pickup_address: str = Field(min_length=5, max_length=500)
     pickup_date: date
     pickup_time: time
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def _need_items(self):
+        if not self.lab_test_ids and not self.branch_items:
+            raise ValueError("Select at least one test.")
+        return self
 
 
 class OrderAssignRider(BaseModel):

@@ -5,7 +5,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.database import Base, SessionLocal, engine
-from app.routes import auth, bookings, doctors, labs, orders, patients, users
+from app.routes import (
+    auth,
+    bookings,
+    doctors,
+    geo,
+    labs,
+    orders,
+    patients,
+    price_search,
+    price_upload,
+    users,
+)
 from app.seed import seed_lab_companies
 
 # Import models so their tables are registered on Base.metadata before create_all.
@@ -64,3 +75,6 @@ app.include_router(doctors.router, prefix=settings.API_V1_PREFIX)
 app.include_router(bookings.router, prefix=settings.API_V1_PREFIX)
 app.include_router(labs.router, prefix=settings.API_V1_PREFIX)
 app.include_router(orders.router, prefix=settings.API_V1_PREFIX)
+app.include_router(price_upload.router, prefix=settings.API_V1_PREFIX)
+app.include_router(price_search.router, prefix=settings.API_V1_PREFIX)
+app.include_router(geo.router, prefix=settings.API_V1_PREFIX)

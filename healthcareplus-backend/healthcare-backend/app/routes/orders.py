@@ -24,6 +24,7 @@ from app.schemas.order import (
     OTPRequestPayload,
     OTPVerifyPayload,
 )
+from app.services.branch_orders import resolve_branch_items
 from app.services.otp import OTPError, create_and_send_otp, verify_otp
 from app.services.sms import send_sms
 
@@ -54,17 +55,27 @@ def create_order(
     if patient is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient profile not found")
 
-    tests = (
-        db.query(LabTest)
-        .options(joinedload(LabTest.company))
-        .filter(LabTest.id.in_(payload.lab_test_ids))
-        .all()
-    )
-    if len(tests) != len(set(payload.lab_test_ids)):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="One or more selected tests are invalid.",
+    tests: list[LabTest] = []
+    if payload.lab_test_ids:
+        tests = (
+            db.query(LabTest)
+            .options(joinedload(LabTest.company))
+            .filter(LabTest.id.in_(payload.lab_test_ids))
+            .all()
         )
+        if len(tests) != len(set(payload.lab_test_ids)):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="One or more selected tests are invalid.",
+            )
+    if payload.branch_items:
+        try:
+            tests += resolve_branch_items(
+                db, [(i.lab_id, i.test_id) for i in payload.branch_items]
+            )
+        except ValueError as exc:
+            db.rollback()
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     order = Order(
         patient_id=patient.id,

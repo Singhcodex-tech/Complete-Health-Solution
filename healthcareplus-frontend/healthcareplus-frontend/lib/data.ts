@@ -230,6 +230,8 @@ export type StoredLabSelection = {
   testId: string;
   testName: string;
   price: number;
+  /** "branch" = pin-code branch price (companyId is then a lab branch id). */
+  source?: "branch";
 };
 
 export function getTestComparison(): TestComparisonRow[] {

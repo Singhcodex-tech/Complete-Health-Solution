@@ -20,6 +20,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { api, ApiError, type LabCompany, type LabImportResult } from "@/lib/api";
 import SectionHeading from "@/components/SectionHeading";
+import PriceUploadPanel from "@/components/PriceUploadPanel";
 
 function slugify(name: string) {
   return name
@@ -148,6 +149,8 @@ export default function AdminLabsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <PriceUploadPanel token={token!} />
 
       <AddCompanyForm
         token={token!}

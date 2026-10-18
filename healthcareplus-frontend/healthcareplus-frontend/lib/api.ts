@@ -184,6 +184,156 @@ export type AnalyticsSummary = {
   }[];
 };
 
+export type PriceUploadError = { row: number; column: string; reason: string };
+
+export type PriceUploadReport = {
+  layout: "wide" | "long";
+  dry_run: boolean;
+  committed: boolean;
+  message: string;
+  summary: {
+    prices_updated: number;
+    branches: number;
+    new: number;
+    changed: number;
+    unchanged: number;
+    errors: number;
+    new_branches: number;
+    new_tests: number;
+    unmatched_tests: number;
+  };
+  errors: PriceUploadError[];
+  errors_truncated: boolean;
+  unmatched_tests: { name: string; count: number; rows: number[] }[];
+  branches: { name: string; pin_code: string; prices: number; is_new: boolean }[];
+  preview_rows: {
+    lab: string;
+    pin_code: string;
+    test: string;
+    price: number;
+    old_price: number | null;
+    status: "new" | "changed" | "unchanged";
+    row: number;
+    column: string;
+  }[];
+};
+
+/** Thrown by commit when the file has errors and nothing was saved. */
+export class PriceUploadBlockedError extends ApiError {
+  report: PriceUploadReport;
+  constructor(message: string, report: PriceUploadReport) {
+    super(message, 422);
+    this.report = report;
+  }
+}
+
+export type TestListImportResult = {
+  committed: boolean;
+  total_rows: number;
+  added: number;
+  already_existed: number;
+  duplicates_in_file: number;
+  blank_rows: number;
+  too_long_rows: number[];
+  master_total: number;
+  sample_new: string[];
+};
+
+export type CompareBranch = {
+  id: string;
+  name: string;
+  pin_code: string;
+  match: "exact" | "nearby";
+  test_count: number;
+};
+
+export type CompareRow = {
+  test_id: string;
+  test_name: string;
+  category: string;
+  prices: Record<string, number>; // lab_id -> price; missing = not offered
+};
+
+export type CompareResponse = {
+  pin_code: string;
+  branches: CompareBranch[];
+  rows: CompareRow[];
+  total_tests: number;
+  page: number;
+  page_size: number;
+  categories: string[];
+};
+
+export type ReverseGeo = {
+  pin_code: string;
+  area: string | null;
+  city: string | null;
+  state: string | null;
+};
+
+export type TestSuggestion = { id: string; name: string };
+
+export type PriceSearchResult = {
+  lab_id: string;
+  lab_name: string;
+  pin_code: string;
+  price: number;
+  match: "exact" | "nearby" | "any";
+  updated_at: string;
+};
+
+export type PriceSearchResponse = {
+  test: TestSuggestion;
+  pin_code: string | null;
+  results: PriceSearchResult[];
+};
+
+export type LabBranch = {
+  id: string;
+  name: string;
+  pin_code: string;
+  match: "exact" | "nearby";
+  test_count: number;
+};
+
+export type LabBranchDetail = {
+  id: string;
+  name: string;
+  pin_code: string;
+  tests: { test_id: string; test_name: string; price: number }[];
+};
+
+async function uploadPriceFile(
+  action: "preview" | "commit",
+  token: string,
+  file: File,
+  opts: { autoCreateTests: boolean; allowPartial?: boolean }
+): Promise<PriceUploadReport> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("auto_create_tests", String(opts.autoCreateTests));
+  if (action === "commit") form.append("allow_partial", String(!!opts.allowPartial));
+  const res = await fetch(`${API_BASE_URL}/api/v1/price-uploads/${action}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` }, // no Content-Type: browser sets multipart boundary
+    body: form,
+  });
+  if (!res.ok) {
+    let detail: unknown = res.statusText;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      // not JSON
+    }
+    if (typeof detail === "object" && detail !== null && "report" in detail) {
+      const d = detail as { message: string; report: PriceUploadReport };
+      throw new PriceUploadBlockedError(d.message, d.report);
+    }
+    throw new ApiError(typeof detail === "string" ? detail : "Upload failed", res.status);
+  }
+  return res.json();
+}
+
 export const api = {
   auth: {
     register: (payload: {
@@ -393,11 +543,79 @@ export const api = {
     },
   },
 
+  geo: {
+    reverse: (lat: number, lon: number) =>
+      request<ReverseGeo>(`/api/v1/geo/reverse?lat=${lat}&lon=${lon}`),
+  },
+
+  prices: {
+    preview: (token: string, file: File, opts: { autoCreateTests: boolean }) =>
+      uploadPriceFile("preview", token, file, opts),
+
+    commit: (
+      token: string,
+      file: File,
+      opts: { autoCreateTests: boolean; allowPartial: boolean }
+    ) => uploadPriceFile("commit", token, file, opts),
+
+    importTestList: async (
+      token: string,
+      file: File,
+      dryRun: boolean
+    ): Promise<TestListImportResult> => {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("dry_run", String(dryRun));
+      const res = await fetch(`${API_BASE_URL}/api/v1/price-uploads/tests`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!res.ok) {
+        let detail = res.statusText;
+        try {
+          detail = (await res.json()).detail ?? detail;
+        } catch {
+          // not JSON
+        }
+        throw new ApiError(typeof detail === "string" ? detail : "Import failed", res.status);
+      }
+      return res.json();
+    },
+
+    compare: (
+      pinCode: string,
+      opts: { q?: string; category?: string; page?: number; pageSize?: number } = {}
+    ) => {
+      const qs = new URLSearchParams({ pin_code: pinCode });
+      if (opts.q) qs.set("q", opts.q);
+      if (opts.category && opts.category !== "All") qs.set("category", opts.category);
+      if (opts.page) qs.set("page", String(opts.page));
+      if (opts.pageSize) qs.set("page_size", String(opts.pageSize));
+      return request<CompareResponse>(`/api/v1/prices/compare?${qs}`);
+    },
+
+    suggestTests: (q: string) =>
+      request<TestSuggestion[]>(`/api/v1/prices/tests?q=${encodeURIComponent(q)}`),
+
+    search: (testId: string, pinCode?: string) => {
+      const qs = new URLSearchParams({ test_id: testId });
+      if (pinCode) qs.set("pin_code", pinCode);
+      return request<PriceSearchResponse>(`/api/v1/prices/search?${qs}`);
+    },
+
+    labsByPin: (pinCode: string) =>
+      request<LabBranch[]>(`/api/v1/prices/labs?pin_code=${encodeURIComponent(pinCode)}`),
+
+    labDetail: (labId: string) => request<LabBranchDetail>(`/api/v1/prices/labs/${labId}`),
+  },
+
   orders: {
     create: (
       token: string,
       payload: {
-        lab_test_ids: string[];
+        lab_test_ids?: string[];
+        branch_items?: { lab_id: string; test_id: string }[];
         pickup_address: string;
         pickup_date: string;
         pickup_time: string;

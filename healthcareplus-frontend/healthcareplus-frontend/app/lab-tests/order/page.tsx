@@ -80,7 +80,10 @@ export default function OrderLabTestPage() {
       // rider still verifies drop-off at each lab individually behind the
       // scenes, but the patient and admin only ever see a single order.
       const order = await api.orders.create(token, {
-        lab_test_ids: selection.map((i) => i.testId),
+        lab_test_ids: selection.filter((i) => i.source !== "branch").map((i) => i.testId),
+        branch_items: selection
+          .filter((i) => i.source === "branch")
+          .map((i) => ({ lab_id: i.companyId, test_id: i.testId })),
         pickup_address: address,
         pickup_date: date,
         pickup_time: `${time}:00`,

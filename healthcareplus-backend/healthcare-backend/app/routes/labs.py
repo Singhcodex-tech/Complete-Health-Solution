@@ -22,7 +22,12 @@ router = APIRouter(prefix="/labs", tags=["Labs"])
 @router.get("/", response_model=list[LabCompanyOut])
 def list_lab_companies(db: Session = Depends(get_db)) -> list[LabCompany]:
     """Public — powers the /lab-partners comparison page."""
-    return db.query(LabCompany).options(joinedload(LabCompany.tests)).all()
+    return (
+        db.query(LabCompany)
+        .options(joinedload(LabCompany.tests))
+        .filter(~LabCompany.slug.like("branch-%"))  # hide per-branch order mirrors
+        .all()
+    )
 
 
 @router.post("/", response_model=LabCompanyOut, status_code=status.HTTP_201_CREATED)
