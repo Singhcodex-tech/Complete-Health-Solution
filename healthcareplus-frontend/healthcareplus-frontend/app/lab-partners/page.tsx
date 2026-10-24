@@ -23,8 +23,11 @@ import { api, type CompareBranch, type CompareRow } from "@/lib/api";
 
 type SelectedKey = string; // `${labId}::${testId}`
 
-const DEFAULT_CATEGORIES = ["Diabetes", "Thyroid", "Liver Function", "Kidney Function", "Vitamins", "Cardiac", "Full Body"];
 const PAGE_SIZE = 30;
+
+function formatShortDate(iso: string) {
+  return new Date(iso + "Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
 const LABS_PER_PAGE = 6;
 
 export default function LabComparePage() {
@@ -34,13 +37,11 @@ export default function LabComparePage() {
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [category, setCategory] = useState("All");
   const [page, setPage] = useState(1);
 
   const [branches, setBranches] = useState<CompareBranch[]>([]);
   const [rows, setRows] = useState<CompareRow[]>([]);
   const [totalTests, setTotalTests] = useState(0);
-  const [categoryList, setCategoryList] = useState<string[]>(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -67,13 +68,12 @@ export default function LabComparePage() {
     setLoading(true);
     setLoadError(null);
     api.prices
-      .compare(pin, { q: debouncedQuery, category, page, pageSize: PAGE_SIZE })
+      .compare(pin, { q: debouncedQuery, category: "All", page, pageSize: PAGE_SIZE })
       .then((d) => {
         if (cancelled) return;
         setBranches(d.branches);
         setRows((prev) => (d.page === 1 ? d.rows : [...prev, ...d.rows]));
         setTotalTests(d.total_tests);
-        setCategoryList(d.categories);
         setLoadedFor(pin);
       })
       .catch(() => !cancelled && setLoadError("Couldn't load labs right now. Please try again."))
@@ -81,9 +81,8 @@ export default function LabComparePage() {
     return () => {
       cancelled = true;
     };
-  }, [pin, debouncedQuery, category, page]);
+  }, [pin, debouncedQuery, page]);
 
-  const categories = useMemo(() => ["All", ...categoryList], [categoryList]);
   const hasData = !!pin && loadedFor === pin;
   const totalLabPages = Math.max(1, Math.ceil(branches.length / LABS_PER_PAGE));
   const safeLabsPage = Math.min(labsPage, totalLabPages - 1);
@@ -132,11 +131,22 @@ export default function LabComparePage() {
 
   const branchHeader = (b: CompareBranch) => (
     <>
-      <span className="block">{b.name}</span>
+      <Link href={`/labs/${b.id}`} className="block hover:text-primary hover:underline">
+        {b.name}
+      </Link>
       <span className="mt-0.5 block font-mono-tight text-[11px] normal-case tracking-normal text-ink-soft/80">
         {b.pin_code}
-        {b.match === "exact" && <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] text-accent">your pin</span>}
+        {b.match === "exact" ? (
+          <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] text-accent">your pin</span>
+        ) : (
+          b.distance_km !== null && <span className="ml-1.5">· {b.distance_km} km</span>
+        )}
       </span>
+      {b.last_updated && (
+        <span className="mt-0.5 block text-[10.5px] normal-case tracking-normal text-ink-soft/70">
+          Prices updated {formatShortDate(b.last_updated)}
+        </span>
+      )}
     </>
   );
 
@@ -144,74 +154,60 @@ export default function LabComparePage() {
     <div className="pb-28">
       <section className="bg-paper-raised py-3 sm:py-4">
         <div className="mx-auto max-w-7xl px-5 md:px-8">
-          <div className="mb-1.5 flex items-center justify-between gap-3 sm:mb-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
             <Link
               href="/#services"
-              className="inline-flex items-center gap-1.5 text-[13.5px] font-medium text-ink-soft hover:text-primary"
+              className="inline-flex shrink-0 items-center gap-1.5 text-[13.5px] font-medium text-ink-soft hover:text-primary"
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Back to services
             </Link>
-            {user?.role === "admin" && (
-              <Link
-                href="/admin/labs"
-                className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary-soft px-4 py-2 text-[13px] font-semibold text-primary hover:bg-primary/10"
-              >
-                <LayoutDashboard className="h-3.5 w-3.5" /> Manage in Dashboard
-              </Link>
-            )}
+            <div className="order-last flex w-full items-center gap-2.5 rounded-xl border border-line bg-paper px-3.5 py-2 focus-within:border-primary lg:order-none lg:mx-auto lg:w-auto lg:max-w-md lg:flex-1">
+              <Search className="h-4.5 w-4.5 shrink-0 text-ink-soft" />
+              <input
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPage(1);
+                }}
+                type="text"
+                placeholder="Search a test…"
+                aria-label="Search a test"
+                className="w-full bg-transparent text-[14px] outline-none placeholder:text-ink-soft/70"
+              />
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <LocationChip />
+              {user?.role === "admin" && (
+                <Link
+                  href="/admin/labs"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary-soft px-4 py-2 text-[13px] font-semibold text-primary hover:bg-primary/10"
+                >
+                  <LayoutDashboard className="h-3.5 w-3.5" /> Manage in Dashboard
+                </Link>
+              )}
+            </div>
           </div>
-          <div className="max-w-3xl">
+          <div className="mt-3">
             <span className="font-mono-tight text-[11px] font-medium uppercase text-primary sm:text-[12px]">
               Compare labs
             </span>
-            <h1 className="mt-1 font-display text-xl font-semibold leading-tight text-ink sm:text-2xl md:text-3xl">
-              Every lab, every price, side by side
+            <h1 className="mt-1.5 font-display text-[19px] font-semibold leading-snug text-ink sm:text-[22px] md:text-[26px]">
+              Authentic
+              <span className="mx-2 font-light text-ink-soft/50 sm:mx-2.5">|</span>
+              NABH
+              <span className="mx-2 font-light text-ink-soft/50 sm:mx-2.5">|</span>
+              WHO
+              <span className="mx-2 font-light text-ink-soft/50 sm:mx-2.5">|</span>
+              GMP certified labs, for authentic reports
             </h1>
-            <p className="mt-1.5 text-[13px] leading-snug text-ink-soft sm:text-[14px]">
-              Labs and prices for your area. Search a test, filter by category, then tick the boxes to build a booking across any combination of local labs.
+            <p className="mt-2 text-[13px] leading-relaxed text-ink-soft sm:text-[14px]">
+              Labs and prices for your area. Search a test, then tick the boxes to build a booking across any combination of local labs.
             </p>
-            <LocationChip className="mt-2.5" />
           </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-7xl px-5 py-3 md:px-8">
-        {/* Search + category filter */}
-        <div className="flex flex-col gap-3 rounded-2xl border border-line bg-paper-raised p-3 sm:flex-row sm:items-center">
-          <div className="flex flex-1 items-center gap-2.5 rounded-xl border border-line px-3.5 py-2">
-            <Search className="h-4.5 w-4.5 text-ink-soft" />
-            <input
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-              type="text"
-              placeholder="Search a test…"
-              className="w-full bg-transparent text-[14px] outline-none placeholder:text-ink-soft/70"
-            />
-          </div>
-        </div>
-
-        <div className="mt-2.5 flex flex-wrap gap-2">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => {
-                setCategory(cat);
-                setPage(1);
-              }}
-              className={`rounded-full border px-4 py-2 text-[13px] font-medium transition-colors ${
-                category === cat
-                  ? "border-primary bg-primary text-white"
-                  : "border-line bg-paper-raised text-ink-soft hover:border-primary hover:text-primary"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
         {!loc.ready || initialLoading ? (
           <div className="mt-10 flex justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -365,7 +361,7 @@ export default function LabComparePage() {
                           }`}
                         >
                           <p className="max-w-[90px] truncate text-[10.5px] font-medium text-ink-soft">{b.name}</p>
-                          <p className="font-mono-tight text-[9.5px] text-ink-soft/70">{b.pin_code}</p>
+                          <p className="font-mono-tight text-[9.5px] text-ink-soft/70">{b.pin_code}{b.match === "nearby" && b.distance_km !== null ? ` · ${b.distance_km} km` : ""}</p>
                           <div className="mt-1 flex items-center justify-center gap-1">
                             <span className="font-mono-tight text-[13px] font-semibold text-ink">₹{price}</span>
                             {isSelected && <Check className="h-3 w-3 shrink-0 text-primary" />}

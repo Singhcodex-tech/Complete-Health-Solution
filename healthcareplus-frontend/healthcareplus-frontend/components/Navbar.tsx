@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X, PhoneCall, User, LogOut, LayoutDashboard, ChevronDown, Stethoscope, FlaskConical, ClipboardList } from "lucide-react";
+import { Menu, X, PhoneCall, User, LogOut, LayoutDashboard, ChevronDown, Stethoscope, FlaskConical, ClipboardList, Search } from "lucide-react";
+import HeaderSearch from "@/components/HeaderSearch";
 import { useAuth } from "@/contexts/AuthContext";
 
 const links = [
   { href: "/services", label: "Services" },
   { href: "/doctors", label: "Doctors" },
   { href: "/nursing", label: "Nursing" },
-  { href: "/lab-tests", label: "Lab Tests" },
   { href: "/ambulance", label: "Ambulance" },
   { href: "/equipment", label: "Equipment" },
   { href: "/insurance", label: "Insurance" },
@@ -27,6 +27,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { user, logout, loading } = useAuth();
 
   useEffect(() => {
@@ -75,12 +76,26 @@ export default function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-2.5 xl:flex">
+          <button
+            onClick={() => {
+              setSearchOpen((v) => !v);
+              setOpen(false);
+            }}
+            aria-label="Search"
+            aria-expanded={searchOpen}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-ink-soft transition-colors hover:border-primary hover:text-primary ${
+              searchOpen ? "border-primary bg-primary-soft text-primary" : "border-line"
+            }`}
+          >
+            {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+          </button>
           <a
             href="tel:+919631655055"
+            aria-label="Call 9631655055"
             className="hidden shrink-0 items-center gap-2 whitespace-nowrap border-l border-line pl-4 ml-1 text-[14.5px] font-medium text-ink-soft hover:text-primary xl:flex"
           >
             <PhoneCall className="h-4 w-4 shrink-0" />
-            9631655055
+            <span className="hidden 2xl:inline">9631655055</span>
           </a>
 
           {!loading && user ? (
@@ -165,14 +180,32 @@ export default function Navbar() {
           </Link>
         </div>
 
-        <button
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-ink xl:hidden"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-2 xl:hidden">
+          <button
+            className={`flex h-10 w-10 items-center justify-center rounded-full border text-ink ${searchOpen ? "border-primary bg-primary-soft text-primary" : "border-line"}`}
+            onClick={() => {
+              setSearchOpen((v) => !v);
+              setOpen(false);
+            }}
+            aria-label="Search"
+            aria-expanded={searchOpen}
+          >
+            {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+          </button>
+          <button
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-ink"
+            onClick={() => {
+              setOpen((v) => !v);
+              setSearchOpen(false);
+            }}
+            aria-label="Toggle menu"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
+
+      <AnimatePresence>{searchOpen && <HeaderSearch onClose={() => setSearchOpen(false)} />}</AnimatePresence>
 
       <AnimatePresence>
         {open && (

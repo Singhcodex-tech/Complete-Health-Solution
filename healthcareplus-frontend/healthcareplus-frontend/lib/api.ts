@@ -201,10 +201,16 @@ export type PriceUploadReport = {
     new_branches: number;
     new_tests: number;
     unmatched_tests: number;
+    big_changes: number;
   };
   errors: PriceUploadError[];
   errors_truncated: boolean;
-  unmatched_tests: { name: string; count: number; rows: number[] }[];
+  unmatched_tests: {
+    name: string;
+    count: number;
+    rows: number[];
+    suggestions: { id: string; name: string }[];
+  }[];
   branches: { name: string; pin_code: string; prices: number; is_new: boolean }[];
   preview_rows: {
     lab: string;
@@ -215,17 +221,38 @@ export type PriceUploadReport = {
     status: "new" | "changed" | "unchanged";
     row: number;
     column: string;
+    change_pct: number | null;
+    warning: boolean;
   }[];
 };
 
-/** Thrown by commit when the file has errors and nothing was saved. */
-export class PriceUploadBlockedError extends ApiError {
-  report: PriceUploadReport;
-  constructor(message: string, report: PriceUploadReport) {
-    super(message, 422);
-    this.report = report;
-  }
-}
+export type UploadJob = {
+  id: string;
+  kind: "preview" | "commit" | "undo";
+  status: "queued" | "running" | "done" | "failed" | "undone";
+  progress: number;
+  stage: string;
+  filename: string;
+  message: string | null;
+  error: string | null;
+  /** PriceUploadReport for preview/commit jobs; { message, restored, removed, skipped } for undo */
+  report: (PriceUploadReport & Record<string, unknown>) | null;
+  created_at: string;
+  finished_at: string | null;
+};
+
+export type UploadHistoryItem = {
+  id: string;
+  kind: "commit" | "undo";
+  status: UploadJob["status"];
+  filename: string;
+  by: string | null;
+  message: string | null;
+  error: string | null;
+  created_at: string;
+  finished_at: string | null;
+  can_undo: boolean;
+};
 
 export type TestListImportResult = {
   committed: boolean;
@@ -244,6 +271,8 @@ export type CompareBranch = {
   name: string;
   pin_code: string;
   match: "exact" | "nearby";
+  distance_km: number | null;
+  last_updated: string | null;
   test_count: number;
 };
 
@@ -279,6 +308,7 @@ export type PriceSearchResult = {
   pin_code: string;
   price: number;
   match: "exact" | "nearby" | "any";
+  distance_km: number | null;
   updated_at: string;
 };
 
@@ -300,23 +330,20 @@ export type LabBranchDetail = {
   id: string;
   name: string;
   pin_code: string;
+  last_updated: string | null;
   tests: { test_id: string; test_name: string; price: number }[];
 };
 
-async function uploadPriceFile(
-  action: "preview" | "commit",
+async function jobRequest<T>(
+  path: string,
   token: string,
-  file: File,
-  opts: { autoCreateTests: boolean; allowPartial?: boolean }
-): Promise<PriceUploadReport> {
-  const form = new FormData();
-  form.append("file", file);
-  form.append("auto_create_tests", String(opts.autoCreateTests));
-  if (action === "commit") form.append("allow_partial", String(!!opts.allowPartial));
-  const res = await fetch(`${API_BASE_URL}/api/v1/price-uploads/${action}`, {
-    method: "POST",
+  form?: FormData,
+  method: "GET" | "POST" = "POST"
+): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/price-uploads${path}`, {
+    method,
     headers: { Authorization: `Bearer ${token}` }, // no Content-Type: browser sets multipart boundary
-    body: form,
+    body: method === "POST" ? form ?? new FormData() : undefined,
   });
   if (!res.ok) {
     let detail: unknown = res.statusText;
@@ -325,11 +352,7 @@ async function uploadPriceFile(
     } catch {
       // not JSON
     }
-    if (typeof detail === "object" && detail !== null && "report" in detail) {
-      const d = detail as { message: string; report: PriceUploadReport };
-      throw new PriceUploadBlockedError(d.message, d.report);
-    }
-    throw new ApiError(typeof detail === "string" ? detail : "Upload failed", res.status);
+    throw new ApiError(typeof detail === "string" ? detail : "Request failed", res.status);
   }
   return res.json();
 }
@@ -549,14 +572,40 @@ export const api = {
   },
 
   prices: {
-    preview: (token: string, file: File, opts: { autoCreateTests: boolean }) =>
-      uploadPriceFile("preview", token, file, opts),
-
-    commit: (
+    startUpload: (
       token: string,
       file: File,
-      opts: { autoCreateTests: boolean; allowPartial: boolean }
-    ) => uploadPriceFile("commit", token, file, opts),
+      opts: { mode: "preview" | "commit"; autoCreateTests: boolean; allowPartial?: boolean }
+    ) => {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("mode", opts.mode);
+      form.append("auto_create_tests", String(opts.autoCreateTests));
+      form.append("allow_partial", String(!!opts.allowPartial));
+      return jobRequest<UploadJob>("/jobs", token, form);
+    },
+
+    commitPreview: (token: string, previewJobId: string, allowPartial: boolean) => {
+      const form = new FormData();
+      form.append("allow_partial", String(allowPartial));
+      return jobRequest<UploadJob>(`/jobs/${previewJobId}/commit`, token, form);
+    },
+
+    getJob: (token: string, jobId: string) =>
+      jobRequest<UploadJob>(`/jobs/${jobId}`, token, undefined, "GET"),
+
+    uploadHistory: (token: string) =>
+      jobRequest<UploadHistoryItem[]>("/jobs?limit=15", token, undefined, "GET"),
+
+    undoUpload: (token: string, jobId: string) =>
+      jobRequest<UploadJob>(`/jobs/${jobId}/undo`, token),
+
+    addAlias: (token: string, alias: string, testId: string) =>
+      request<{ alias: string; test_id: string }>("/api/v1/price-uploads/aliases", {
+        method: "POST",
+        token,
+        body: JSON.stringify({ alias, test_id: testId }),
+      }),
 
     importTestList: async (
       token: string,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Loader2, MapPin, Search } from "lucide-react";
 import { api, ApiError, type PriceSearchResponse, type TestSuggestion } from "@/lib/api";
 import SectionHeading from "@/components/SectionHeading";
@@ -65,11 +66,17 @@ export default function PriceSearchPage() {
             <li key={r.lab_id} className="flex items-center justify-between gap-4 px-5 py-4">
               <div>
                 <div className="text-[15px] font-semibold text-ink">
-                  {r.lab_name}
+                  <Link href={`/labs/${r.lab_id}`} className="hover:text-primary hover:underline">{r.lab_name}</Link>
                   {i === 0 && <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">Lowest</span>}
                 </div>
-                <div className="mt-0.5 flex items-center gap-1 text-[12.5px] text-ink-soft">
-                  <MapPin className="h-3 w-3" /> {r.pin_code}
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12.5px] text-ink-soft">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {r.pin_code}
+                    {r.match === "nearby" && r.distance_km !== null ? ` · ${r.distance_km} km away` : ""}
+                  </span>
+                  <span className="text-ink-soft/70">
+                    Updated {new Date(r.updated_at + "Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                  </span>
                 </div>
               </div>
               <div className="font-display text-2xl font-semibold text-ink">₹{r.price.toLocaleString("en-IN")}</div>
@@ -150,7 +157,7 @@ export default function PriceSearchPage() {
               : `${data.results.length} lab${data.results.length > 1 ? "s" : ""} offering ${data.test.name}`}
           </p>
           {group(`In pin code ${data.pin_code}`, exact)}
-          {group(`Nearby (${data.pin_code?.slice(0, 3)}xxx)`, nearby)}
+          {group("Nearby", nearby)}
           {group("All labs", all)}
         </div>
       )}

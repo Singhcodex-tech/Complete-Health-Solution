@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.ratelimit import rate_limit
 from app.database import get_db
 from app.models.lab_price import Lab, LabTestPrice, Test
 from app.schemas.price_upload import (
@@ -17,10 +18,14 @@ from app.schemas.price_upload import (
     PriceSearchResult,
     TestSuggestion,
 )
-from app.services.price_upload.categories import CATEGORIES, CATEGORY_KEYWORDS, category_for
+from app.services.nearby import nearby_labs
+from app.services.price_upload.categories import CATEGORIES
 from app.services.price_upload.parser import normalize_name
 
-router = APIRouter(prefix="/prices", tags=["Price Search"])
+# Public endpoints -> per-IP limit (they can trigger a geocoder call and big queries).
+router = APIRouter(
+    prefix="/prices", tags=["Price Search"], dependencies=[Depends(rate_limit("prices", 120))]
+)
 
 PIN_RE = re.compile(r"^[0-9]{6}$")
 
@@ -31,6 +36,10 @@ def _check_pin(pin: str | None) -> str | None:
     if not PIN_RE.match(pin):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Pin code must be exactly 6 digits.")
     return pin
+
+
+def _iso(dt) -> str | None:
+    return dt.isoformat() if dt else None
 
 
 @router.get("/tests", response_model=list[TestSuggestion])
@@ -50,15 +59,16 @@ def suggest_tests(
 @router.get("/search", response_model=PriceSearchOut)
 def search_prices(
     test_id: str | None = None,
-    test: str | None = Query(None, max_length=200, description="Exact test name"),
+    test: str | None = Query(None, max_length=500, description="Exact test name"),
     pin_code: str | None = None,
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ) -> PriceSearchOut:
     """Branches offering a test, cheapest first.
 
-    With pin_code: exact-pin branches first, then same first 3 digits ("nearby").
-    Without: every branch, cheapest first.
+    With pin_code: branches in that pin first, then branches within the nearby radius
+    (real distance when pin coordinates are known, same first 3 digits otherwise),
+    each group cheapest first. Without: every branch, cheapest first.
     """
     pin = _check_pin(pin_code)
     if test_id:
@@ -72,30 +82,32 @@ def search_prices(
     if t is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Test not found.")
 
-    stmt = (
+    base = (
         select(Lab.id, Lab.name, Lab.pin_code, LabTestPrice.price, LabTestPrice.updated_at)
         .join(LabTestPrice, LabTestPrice.lab_id == Lab.id)
         .where(LabTestPrice.test_id == t.id)
     )
     if pin:
-        rank = case((Lab.pin_code == pin, 0), else_=1)
-        stmt = stmt.where(or_(Lab.pin_code == pin, Lab.pin_code.like(pin[:3] + "%"))).order_by(
-            rank, LabTestPrice.price, Lab.name
-        )
+        near = {n.id: n for n in nearby_labs(db, pin, limit=500)}
+        rows = db.execute(base.where(Lab.id.in_(list(near)))).all() if near else []
+        rows.sort(key=lambda r: (near[r.id].match != "exact", r.price, r.name))
+        results = [
+            PriceSearchResult(
+                lab_id=r.id, lab_name=r.name, pin_code=r.pin_code, price=r.price,
+                match=near[r.id].match, distance_km=near[r.id].distance_km,
+                updated_at=r.updated_at.isoformat(),
+            )
+            for r in rows[:limit]
+        ]
     else:
-        stmt = stmt.order_by(LabTestPrice.price, Lab.name)
-    rows = db.execute(stmt.limit(limit)).all()
-    results = [
-        PriceSearchResult(
-            lab_id=lid,
-            lab_name=name,
-            pin_code=lpin,
-            price=price,
-            match=("any" if not pin else "exact" if lpin == pin else "nearby"),
-            updated_at=updated.isoformat(),
-        )
-        for lid, name, lpin, price, updated in rows
-    ]
+        rows = db.execute(base.order_by(LabTestPrice.price, Lab.name).limit(limit)).all()
+        results = [
+            PriceSearchResult(
+                lab_id=r.id, lab_name=r.name, pin_code=r.pin_code, price=r.price,
+                match="any", updated_at=r.updated_at.isoformat(),
+            )
+            for r in rows
+        ]
     return PriceSearchOut(test=TestSuggestion(id=t.id, name=t.name), pin_code=pin, results=results)
 
 
@@ -105,25 +117,24 @@ def labs_by_pin(
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ) -> list[LabBranchOut]:
-    """Branches at a pin code (exact first) or sharing its first 3 digits."""
+    """Branches at a pin code (exact first) or within the nearby radius."""
     pin = _check_pin(pin_code)
     if not pin:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "pin_code is required.")
-    count = func.count(LabTestPrice.test_id)
-    rank = case((Lab.pin_code == pin, 0), else_=1)
-    stmt = (
-        select(Lab.id, Lab.name, Lab.pin_code, count)
-        .outerjoin(LabTestPrice, LabTestPrice.lab_id == Lab.id)
-        .where(or_(Lab.pin_code == pin, Lab.pin_code.like(pin[:3] + "%")))
-        .group_by(Lab.id, Lab.name, Lab.pin_code)
-        .order_by(rank, Lab.name)
-        .limit(limit)
-    )
+    labs = nearby_labs(db, pin, limit=limit)
+    counts = dict(
+        db.execute(
+            select(LabTestPrice.lab_id, func.count())
+            .where(LabTestPrice.lab_id.in_([l.id for l in labs]))
+            .group_by(LabTestPrice.lab_id)
+        ).all()
+    ) if labs else {}
     return [
         LabBranchOut(
-            id=i, name=n, pin_code=p, test_count=c, match="exact" if p == pin else "nearby"
+            id=l.id, name=l.name, pin_code=l.pin_code, match=l.match,
+            distance_km=l.distance_km, test_count=counts.get(l.id, 0),
         )
-        for i, n, p, c in db.execute(stmt)
+        for l in labs
     ]
 
 
@@ -134,7 +145,7 @@ def lab_detail(lab_id: str, db: Session = Depends(get_db)) -> LabDetailOut:
     if lab is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Lab branch not found.")
     rows = db.execute(
-        select(Test.id, Test.name, LabTestPrice.price)
+        select(Test.id, Test.name, LabTestPrice.price, LabTestPrice.updated_at)
         .join(LabTestPrice, LabTestPrice.test_id == Test.id)
         .where(LabTestPrice.lab_id == lab_id)
         .order_by(Test.name)
@@ -143,11 +154,12 @@ def lab_detail(lab_id: str, db: Session = Depends(get_db)) -> LabDetailOut:
         id=lab.id,
         name=lab.name,
         pin_code=lab.pin_code,
-        tests=[LabPriceLine(test_id=i, test_name=n, price=p) for i, n, p in rows],
+        last_updated=_iso(max((r[3] for r in rows), default=None)),
+        tests=[LabPriceLine(test_id=i, test_name=n, price=p) for i, n, p, _ in rows],
     )
 
 
-@router.get("/compare", response_model=CompareOut)
+@router.get("/compare", response_model=CompareOut, dependencies=[Depends(rate_limit("compare", 60))])
 def compare_near_pin(
     pin_code: str,
     q: str = Query("", max_length=100),
@@ -159,22 +171,16 @@ def compare_near_pin(
 ) -> CompareOut:
     """Side-by-side matrix for the labs serving a pin code.
 
-    Columns = branches at that pin (exact first) then same first 3 digits.
+    Columns = branches at that pin (exact first), then nearest others.
     Rows = tests offered by at least one of those branches, A-Z.
     """
     pin = _check_pin(pin_code)
     if not pin:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "pin_code is required.")
-    if category != "All" and category not in CATEGORY_KEYWORDS:
+    if category != "All" and category not in CATEGORIES:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown category.")
 
-    rank = case((Lab.pin_code == pin, 0), else_=1)
-    labs = db.execute(
-        select(Lab.id, Lab.name, Lab.pin_code)
-        .where(or_(Lab.pin_code == pin, Lab.pin_code.like(pin[:3] + "%")))
-        .order_by(rank, Lab.name, Lab.pin_code)
-        .limit(branch_limit)
-    ).all()
+    labs = nearby_labs(db, pin, limit=branch_limit)
     empty = CompareOut(
         pin_code=pin, branches=[], rows=[], total_tests=0, page=page,
         page_size=page_size, categories=CATEGORIES,
@@ -183,18 +189,18 @@ def compare_near_pin(
         return empty
     lab_ids = [l.id for l in labs]
 
-    counts = dict(
-        db.execute(
-            select(LabTestPrice.lab_id, func.count())
+    stats = {
+        lid: (cnt, last)
+        for lid, cnt, last in db.execute(
+            select(LabTestPrice.lab_id, func.count(), func.max(LabTestPrice.updated_at))
             .where(LabTestPrice.lab_id.in_(lab_ids))
             .group_by(LabTestPrice.lab_id)
-        ).all()
-    )
+        )
+    }
     branches = [
         CompareBranch(
-            id=l.id, name=l.name, pin_code=l.pin_code,
-            match="exact" if l.pin_code == pin else "nearby",
-            test_count=counts.get(l.id, 0),
+            id=l.id, name=l.name, pin_code=l.pin_code, match=l.match, distance_km=l.distance_km,
+            last_updated=_iso(stats.get(l.id, (0, None))[1]), test_count=stats.get(l.id, (0, None))[0],
         )
         for l in labs
     ]
@@ -204,16 +210,15 @@ def compare_near_pin(
     if nq:
         test_filter.append(Test.normalized_name.contains(nq, autoescape=True))
     if category != "All":
-        test_filter.append(
-            or_(*[Test.normalized_name.contains(k, autoescape=True) for k in CATEGORY_KEYWORDS[category]])
-        )
-    base = select(Test.id, Test.name, Test.normalized_name).join(
-        LabTestPrice, LabTestPrice.test_id == Test.id
-    ).where(*test_filter).group_by(Test.id, Test.name, Test.normalized_name)
+        test_filter.append(Test.category == category)
+    base = (
+        select(Test.id, Test.name, Test.category)
+        .join(LabTestPrice, LabTestPrice.test_id == Test.id)
+        .where(*test_filter)
+        .group_by(Test.id, Test.name, Test.category)
+    )
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
-    tests = db.execute(
-        base.order_by(Test.name).offset((page - 1) * page_size).limit(page_size)
-    ).all()
+    tests = db.execute(base.order_by(Test.name).offset((page - 1) * page_size).limit(page_size)).all()
 
     prices: dict[str, dict[str, float]] = {}
     if tests:
@@ -229,10 +234,8 @@ def compare_near_pin(
         pin_code=pin,
         branches=branches,
         rows=[
-            CompareRow(
-                test_id=t.id, test_name=t.name, category=category_for(t.normalized_name),
-                prices=prices.get(t.id, {}),
-            )
+            CompareRow(test_id=t.id, test_name=t.name, category=t.category or "General",
+                       prices=prices.get(t.id, {}))
             for t in tests
         ],
         total_tests=total,

@@ -8,3 +8,6 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .DS_Store
+
+# price upload temp files + undo logs
+data/

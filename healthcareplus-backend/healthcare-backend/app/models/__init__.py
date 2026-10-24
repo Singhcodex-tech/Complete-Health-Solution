@@ -11,4 +11,11 @@ from app.models.order import (  # noqa: F401
     OrderItem,
     OrderStatus,
 )
-from app.models.lab_price import Lab, LabTestPrice, Test  # noqa: F401
+from app.models.lab_price import (  # noqa: F401
+    Lab,
+    LabTestPrice,
+    PincodeGeo,
+    PriceUploadJob,
+    Test,
+    TestAlias,
+)

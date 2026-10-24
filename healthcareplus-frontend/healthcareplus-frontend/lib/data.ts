@@ -310,22 +310,6 @@ export const homeOfferTiles: OfferTile[] = [
     ],
   },
   {
-    slug: "other-services",
-    title: "Other Services",
-    icon: Activity,
-    tint: "primary",
-    description: "Diagnostics, rehabilitation and wellness services delivered right to your doorstep.",
-    bookSlug: "portable-xray",
-    comingSoon: true,
-    subItems: [
-      { label: "Portable X-Ray" },
-      { label: "ECG at Home" },
-      { label: "Physiotherapy" },
-      { label: "Nutrition & Diet Counselling" },
-      { label: "Medical Equipment Arrangement" },
-    ],
-  },
-  {
     slug: "medical-insurance",
     title: "Medical Insurance",
     icon: ShieldCheck,
@@ -389,6 +373,22 @@ export const homeOfferTiles: OfferTile[] = [
     description: "Prescription and OTC medicines delivered to your doorstep same-day.",
     price: "Free above ₹499",
     bookSlug: "medicine-delivery",
+  },
+  {
+    slug: "other-services",
+    title: "Other Services",
+    icon: Activity,
+    tint: "primary",
+    description: "Diagnostics, rehabilitation and wellness services delivered right to your doorstep.",
+    bookSlug: "portable-xray",
+    comingSoon: true,
+    subItems: [
+      { label: "Portable X-Ray" },
+      { label: "ECG at Home" },
+      { label: "Physiotherapy" },
+      { label: "Nutrition & Diet Counselling" },
+      { label: "Medical Equipment Arrangement" },
+    ],
   },
 ];
 

@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import {
-  Search,
   ShieldCheck,
   Clock,
   Users,
@@ -46,15 +43,6 @@ const whyUs = [
 ];
 
 export default function Home() {
-  const router = useRouter();
-  const [query, setQuery] = useState("");
-
-  const handleSearch = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const q = query.trim();
-    router.push(q ? `/services?q=${encodeURIComponent(q)}` : "/services");
-  };
-
   return (
     <div>
       {/* HERO */}
@@ -85,30 +73,7 @@ export default function Home() {
               round-the-clock support.
             </p>
 
-            {/* Search bar */}
-            <form
-              onSubmit={handleSearch}
-              className="mt-4 flex flex-col gap-2.5 rounded-2xl border border-line bg-paper-raised p-2.5 shadow-lg shadow-ink/5 sm:mt-6 sm:flex-row md:mt-8"
-            >
-              <div className="flex flex-1 items-center gap-2.5 rounded-xl px-3.5 py-2.5">
-                <Search className="h-5 w-5 shrink-0 text-ink-soft" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search doctors, nursing, lab tests, ambulance…"
-                  className="w-full bg-transparent text-[14.5px] text-ink outline-none placeholder:text-ink-soft/70"
-                />
-              </div>
-              <button
-                type="submit"
-                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-[14.5px] font-semibold text-white transition-colors hover:bg-primary-dark"
-              >
-                Search <ArrowRight className="h-4 w-4" />
-              </button>
-            </form>
-
-            <div className="mt-3 flex flex-wrap items-center gap-3 sm:mt-5 md:mt-6">
+            <div className="mt-5 flex flex-wrap items-center gap-3 sm:mt-6 md:mt-8">
               <Link
                 href="/booking"
                 className="rounded-full bg-primary px-6 py-3 text-[14.5px] font-semibold text-white shadow-sm shadow-primary/30 transition-transform hover:scale-[1.02] hover:bg-primary-dark"

@@ -17,7 +17,9 @@ from app.routes import (
     price_upload,
     users,
 )
+from app.db_migrate import backfill_test_categories, ensure_columns
 from app.seed import seed_lab_companies
+from app.services.price_upload.jobs import mark_interrupted_jobs
 
 # Import models so their tables are registered on Base.metadata before create_all.
 import app.models  # noqa: F401
@@ -50,6 +52,9 @@ def on_startup() -> None:
     # Creates tables if they don't exist yet. Fine for dev/SQLite; swap for
     # Alembic migrations before running this against production Postgres.
     Base.metadata.create_all(bind=engine)
+    ensure_columns(engine)
+    backfill_test_categories(engine)
+    mark_interrupted_jobs()
 
     db = SessionLocal()
     try:

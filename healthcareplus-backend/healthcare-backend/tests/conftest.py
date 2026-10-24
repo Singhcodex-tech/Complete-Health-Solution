@@ -26,8 +26,41 @@ def db():
     session.close()
 
 
+@pytest.fixture(autouse=True)
+def _isolation(monkeypatch, tmp_path):
+    """No real network, no sleeps, fresh rate-limit counters, temp upload dir."""
+    from app.core.config import settings
+    from app.core.ratelimit import reset_rate_limits
+    from app.services import pincode_geo
+
+    reset_rate_limits()
+    monkeypatch.setattr(pincode_geo, "geocode_pin_remote", lambda pin: None)
+    monkeypatch.setattr(pincode_geo.time, "sleep", lambda s: None)
+    monkeypatch.setattr(settings, "PRICE_UPLOAD_DIR", str(tmp_path / "uploads"))
+    yield
+    reset_rate_limits()
+
+
 @pytest.fixture()
-def client(db):
+def client(db, monkeypatch):
+    from app.services.price_upload import jobs
+
+    class _Factory:  # jobs open their own session; reuse the test one, don't close it
+        def __call__(self):
+            return _Keep(db)
+
+    class _Keep:
+        def __init__(self, s):
+            self._s = s
+
+        def __getattr__(self, k):
+            return getattr(self._s, k)
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(jobs, "session_factory", _Factory())
+    jobs.PROGRESS.clear()
     app.dependency_overrides[get_db] = lambda: db
     yield TestClient(app)
     app.dependency_overrides.clear()

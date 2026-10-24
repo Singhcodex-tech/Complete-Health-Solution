@@ -6,12 +6,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.config import settings
+from app.core.ratelimit import rate_limit
 from app.schemas.price_upload import ReverseGeoOut
 
-router = APIRouter(prefix="/geo", tags=["Geo"])
+router = APIRouter(prefix="/geo", tags=["Geo"], dependencies=[Depends(rate_limit("geo", 20))])
 
 _CACHE: dict[tuple[float, float], dict] = {}
 _LOCK = threading.Lock()
@@ -19,7 +20,42 @@ _CACHE_MAX = 5000
 _PIN_RE = re.compile(r"(?<!\d)(\d{3})\s?(\d{3})(?!\d)")
 
 
+def _fetch_google(lat: float, lon: float) -> dict:
+    """Google Geocoding API, reshaped like the Nominatim answer the route expects."""
+    qs = urllib.parse.urlencode(
+        {"latlng": f"{lat},{lon}", "result_type": "postal_code|street_address|route", "key": settings.GOOGLE_MAPS_API_KEY}
+    )
+    with urllib.request.urlopen(  # noqa: S310 - fixed https URL
+        f"https://maps.googleapis.com/maps/api/geocode/json?{qs}", timeout=6
+    ) as resp:
+        data = json.loads(resp.read().decode())
+    return google_to_address(data)
+
+
+def google_to_address(data: dict) -> dict:
+    addr: dict = {}
+    for result in data.get("results", []):
+        for c in result.get("address_components", []):
+            t = c.get("types", [])
+            name = c.get("long_name")
+            if "postal_code" in t:
+                addr.setdefault("postcode", name)
+            elif "sublocality" in t or "sublocality_level_1" in t:
+                addr.setdefault("suburb", name)
+            elif "locality" in t:
+                addr.setdefault("city", name)
+            elif "administrative_area_level_3" in t:
+                addr.setdefault("town", name)
+            elif "administrative_area_level_1" in t:
+                addr.setdefault("state", name)
+        if "postcode" in addr:
+            break
+    return {"address": addr}
+
+
 def _fetch(lat: float, lon: float) -> dict:
+    if settings.GEOCODER_PROVIDER == "google" and settings.GOOGLE_MAPS_API_KEY:
+        return _fetch_google(lat, lon)
     qs = urllib.parse.urlencode(
         {"format": "jsonv2", "lat": lat, "lon": lon, "zoom": 18, "addressdetails": 1, "accept-language": "en"}
     )

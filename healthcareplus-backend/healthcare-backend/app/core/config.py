@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     GEOCODER_URL: str = "https://nominatim.openstreetmap.org/reverse"
     GEOCODER_USER_AGENT: str = "HealthCarePlus/1.0 (contact: admin@healthcareplus.example)"
     PRICE_UPLOAD_MAX_ERRORS_RETURNED: int = 5000
+    PRICE_UPLOAD_DIR: str = "./data/price_uploads"  # temp files + undo logs
+    PRICE_UPLOAD_KEEP_HOURS: int = 24  # unconfirmed preview files are deleted after this
+    PRICE_JUMP_WARN_PCT: float = 50.0  # flag price changes bigger than this in the preview
+    GEOCODER_PROVIDER: str = "nominatim"  # "nominatim" (free) or "google" (more accurate in India)
+    GOOGLE_MAPS_API_KEY: str = ""
+    NEARBY_RADIUS_KM: float = 25.0  # "near me" radius once pin-code coordinates are known
+    RATE_LIMIT_ENABLED: bool = True
 
     # File uploads (Cloudinary-compatible — plug real keys in later)
     CLOUDINARY_CLOUD_NAME: str = ""
