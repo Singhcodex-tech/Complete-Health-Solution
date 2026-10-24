@@ -12,6 +12,7 @@ type Item = { key: string; label: string; sub: string; href: string; icon: Lucid
 
 const PAGES: { label: string; sub: string; href: string; words: string }[] = [
   { label: "Compare lab prices", sub: "Labs near you, side by side", href: "/lab-partners", words: "lab test price compare blood pathology" },
+  { label: "Book lab tests", sub: "Home sample collection", href: "/lab-tests", words: "lab test blood sample" },
   { label: "Doctors", sub: "Consult a doctor", href: "/doctors", words: "doctor consultation physician specialist" },
   { label: "Home nursing", sub: "Trained nurses at home", href: "/nursing", words: "nurse nursing care attendant" },
   { label: "Ambulance", sub: "Emergency and transfers", href: "/ambulance", words: "ambulance emergency 108" },

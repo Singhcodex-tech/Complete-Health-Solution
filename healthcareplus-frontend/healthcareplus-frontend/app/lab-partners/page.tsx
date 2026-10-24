@@ -23,6 +23,7 @@ import { api, type CompareBranch, type CompareRow } from "@/lib/api";
 
 type SelectedKey = string; // `${labId}::${testId}`
 
+const DEFAULT_CATEGORIES = ["Diabetes", "Thyroid", "Liver Function", "Kidney Function", "Vitamins", "Cardiac", "Full Body"];
 const PAGE_SIZE = 30;
 
 function formatShortDate(iso: string) {
@@ -37,11 +38,13 @@ export default function LabComparePage() {
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [category, setCategory] = useState("All");
   const [page, setPage] = useState(1);
 
   const [branches, setBranches] = useState<CompareBranch[]>([]);
   const [rows, setRows] = useState<CompareRow[]>([]);
   const [totalTests, setTotalTests] = useState(0);
+  const [categoryList, setCategoryList] = useState<string[]>(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -68,12 +71,13 @@ export default function LabComparePage() {
     setLoading(true);
     setLoadError(null);
     api.prices
-      .compare(pin, { q: debouncedQuery, category: "All", page, pageSize: PAGE_SIZE })
+      .compare(pin, { q: debouncedQuery, category, page, pageSize: PAGE_SIZE })
       .then((d) => {
         if (cancelled) return;
         setBranches(d.branches);
         setRows((prev) => (d.page === 1 ? d.rows : [...prev, ...d.rows]));
         setTotalTests(d.total_tests);
+        setCategoryList(d.categories);
         setLoadedFor(pin);
       })
       .catch(() => !cancelled && setLoadError("Couldn't load labs right now. Please try again."))
@@ -81,8 +85,9 @@ export default function LabComparePage() {
     return () => {
       cancelled = true;
     };
-  }, [pin, debouncedQuery, page]);
+  }, [pin, debouncedQuery, category, page]);
 
+  const categories = useMemo(() => ["All", ...categoryList], [categoryList]);
   const hasData = !!pin && loadedFor === pin;
   const totalLabPages = Math.max(1, Math.ceil(branches.length / LABS_PER_PAGE));
   const safeLabsPage = Math.min(labsPage, totalLabPages - 1);
@@ -152,17 +157,49 @@ export default function LabComparePage() {
 
   return (
     <div className="pb-28">
-      <section className="bg-paper-raised py-3 sm:py-4">
+      <section className="border-b border-line bg-paper-raised pb-3 pt-2 sm:pb-4 sm:pt-3">
         <div className="mx-auto max-w-7xl px-5 md:px-8">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
+          <div className="flex items-center justify-between gap-3">
             <Link
               href="/#services"
-              className="inline-flex shrink-0 items-center gap-1.5 text-[13.5px] font-medium text-ink-soft hover:text-primary"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ink-soft hover:text-primary"
             >
               <ArrowLeft className="h-3.5 w-3.5" /> Back to services
             </Link>
-            <div className="order-last flex w-full items-center gap-2.5 rounded-xl border border-line bg-paper px-3.5 py-2 focus-within:border-primary lg:order-none lg:mx-auto lg:w-auto lg:max-w-md lg:flex-1">
-              <Search className="h-4.5 w-4.5 shrink-0 text-ink-soft" />
+            {user?.role === "admin" && (
+              <Link
+                href="/admin/labs"
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary-soft px-3.5 py-1.5 text-[12.5px] font-semibold text-primary hover:bg-primary/10"
+              >
+                <LayoutDashboard className="h-3.5 w-3.5" /> Manage in Dashboard
+              </Link>
+            )}
+          </div>
+
+          {/* title on the left, location on the right — no empty band beside the heading */}
+          <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-8">
+            <div className="max-w-2xl">
+              <span className="font-mono-tight text-[11px] font-medium uppercase text-primary sm:text-[12px]">
+                Compare labs
+              </span>
+              <h1 className="mt-1 font-display text-xl font-semibold leading-tight text-ink sm:text-2xl md:text-3xl">
+                Every lab, every price, side by side
+              </h1>
+              <p className="mt-1.5 text-[13px] leading-snug text-ink-soft sm:text-[14px]">
+                Local labs and prices for your area. Tick prices to book across any labs.
+              </p>
+            </div>
+            <LocationChip className="self-start md:shrink-0" />
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-4 md:px-8">
+        {/* Search + categories in ONE row, and only when there are labs to filter */}
+        {showTable && (
+          <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:gap-4">
+            <div className="flex items-center gap-2.5 rounded-xl border border-line bg-paper-raised px-3.5 py-2 lg:w-80 lg:shrink-0">
+              <Search className="h-4 w-4 shrink-0 text-ink-soft" />
               <input
                 value={query}
                 onChange={(e) => {
@@ -175,45 +212,33 @@ export default function LabComparePage() {
                 className="w-full bg-transparent text-[14px] outline-none placeholder:text-ink-soft/70"
               />
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              <LocationChip />
-              {user?.role === "admin" && (
-                <Link
-                  href="/admin/labs"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary-soft px-4 py-2 text-[13px] font-semibold text-primary hover:bg-primary/10"
+            <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => {
+                    setCategory(cat);
+                    setPage(1);
+                  }}
+                  className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                    category === cat
+                      ? "border-primary bg-primary text-white"
+                      : "border-line bg-paper-raised text-ink-soft hover:border-primary hover:text-primary"
+                  }`}
                 >
-                  <LayoutDashboard className="h-3.5 w-3.5" /> Manage in Dashboard
-                </Link>
-              )}
+                  {cat}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="mt-3">
-            <span className="font-mono-tight text-[11px] font-medium uppercase text-primary sm:text-[12px]">
-              Compare labs
-            </span>
-            <h1 className="mt-1.5 font-display text-[19px] font-semibold leading-snug text-ink sm:text-[22px] md:text-[26px]">
-              Authentic
-              <span className="mx-2 font-light text-ink-soft/50 sm:mx-2.5">|</span>
-              NABH
-              <span className="mx-2 font-light text-ink-soft/50 sm:mx-2.5">|</span>
-              WHO
-              <span className="mx-2 font-light text-ink-soft/50 sm:mx-2.5">|</span>
-              GMP certified labs, for authentic reports
-            </h1>
-            <p className="mt-2 text-[13px] leading-relaxed text-ink-soft sm:text-[14px]">
-              Labs and prices for your area. Search a test, then tick the boxes to build a booking across any combination of local labs.
-            </p>
-          </div>
-        </div>
-      </section>
+        )}
 
-      <section className="mx-auto max-w-7xl px-5 py-3 md:px-8">
         {!loc.ready || initialLoading ? (
-          <div className="mt-10 flex justify-center">
+          <div className="mt-8 flex justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         ) : !pin ? (
-          <div className="mx-auto mt-10 max-w-md rounded-2xl border border-line bg-paper-raised p-8 text-center">
+          <div className="mx-auto mt-4 max-w-md rounded-2xl border border-line bg-paper-raised p-6 text-center sm:p-8">
             <MapPin className="mx-auto h-7 w-7 text-primary" />
             <h2 className="mt-3 font-display text-lg font-semibold text-ink">Tell us where you are</h2>
             <p className="mt-1.5 text-[13.5px] text-ink-soft">
@@ -224,9 +249,9 @@ export default function LabComparePage() {
             </button>
           </div>
         ) : loadError && !hasData ? (
-          <p className="mt-10 text-center text-[14px] text-emergency">{loadError}</p>
+          <p className="mt-6 text-center text-[14px] text-emergency">{loadError}</p>
         ) : noLabsHere ? (
-          <div className="mx-auto mt-10 max-w-md rounded-2xl border border-line bg-paper-raised p-8 text-center">
+          <div className="mx-auto mt-4 max-w-xl rounded-2xl border border-line bg-paper-raised p-6 text-center sm:p-8">
             <FlaskConical className="mx-auto h-7 w-7 text-primary" />
             <h2 className="mt-3 font-display text-lg font-semibold text-ink">No partner labs near {pin} yet</h2>
             <p className="mt-1.5 text-[13.5px] text-ink-soft">

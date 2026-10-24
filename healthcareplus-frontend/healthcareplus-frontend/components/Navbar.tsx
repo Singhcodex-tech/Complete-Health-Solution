@@ -11,6 +11,7 @@ const links = [
   { href: "/services", label: "Services" },
   { href: "/doctors", label: "Doctors" },
   { href: "/nursing", label: "Nursing" },
+  { href: "/lab-tests", label: "Lab Tests" },
   { href: "/ambulance", label: "Ambulance" },
   { href: "/equipment", label: "Equipment" },
   { href: "/insurance", label: "Insurance" },

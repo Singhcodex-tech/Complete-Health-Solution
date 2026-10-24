@@ -226,6 +226,18 @@ export type PriceUploadReport = {
   }[];
 };
 
+/**
+ * Kept only so an old copy of app/admin/price-upload/page.tsx still compiles.
+ * The Admin → Labs panel uses the background-job functions instead.
+ */
+export class PriceUploadBlockedError extends ApiError {
+  report: PriceUploadReport;
+  constructor(message: string, report: PriceUploadReport) {
+    super(message, 422);
+    this.report = report;
+  }
+}
+
 export type UploadJob = {
   id: string;
   kind: "preview" | "commit" | "undo";
@@ -300,6 +312,7 @@ export type ReverseGeo = {
   state: string | null;
 };
 
+
 export type TestSuggestion = { id: string; name: string };
 
 export type PriceSearchResult = {
@@ -333,6 +346,38 @@ export type LabBranchDetail = {
   last_updated: string | null;
   tests: { test_id: string; test_name: string; price: number }[];
 };
+
+/** @deprecated old synchronous upload; kept for the legacy page above. Use startUpload. */
+async function legacyUploadPriceFile(
+  action: "preview" | "commit",
+  token: string,
+  file: File,
+  opts: { autoCreateTests: boolean; allowPartial?: boolean }
+): Promise<PriceUploadReport> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("auto_create_tests", String(opts.autoCreateTests));
+  if (action === "commit") form.append("allow_partial", String(!!opts.allowPartial));
+  const res = await fetch(`${API_BASE_URL}/api/v1/price-uploads/${action}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    let detail: unknown = res.statusText;
+    try {
+      detail = (await res.json()).detail ?? detail;
+    } catch {
+      // not JSON
+    }
+    if (typeof detail === "object" && detail !== null && "report" in detail) {
+      const d = detail as { message: string; report: PriceUploadReport };
+      throw new PriceUploadBlockedError(d.message, d.report);
+    }
+    throw new ApiError(typeof detail === "string" ? detail : "Upload failed", res.status);
+  }
+  return res.json();
+}
 
 async function jobRequest<T>(
   path: string,
@@ -572,6 +617,14 @@ export const api = {
   },
 
   prices: {
+    /** @deprecated legacy synchronous preview */
+    preview: (token: string, file: File, opts: { autoCreateTests: boolean }) =>
+      legacyUploadPriceFile("preview", token, file, opts),
+
+    /** @deprecated legacy synchronous save */
+    commit: (token: string, file: File, opts: { autoCreateTests: boolean; allowPartial: boolean }) =>
+      legacyUploadPriceFile("commit", token, file, opts),
+
     startUpload: (
       token: string,
       file: File,

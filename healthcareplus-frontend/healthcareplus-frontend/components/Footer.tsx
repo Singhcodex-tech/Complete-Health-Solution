@@ -8,6 +8,7 @@ const columns = [
       { href: "/services", label: "All Services" },
       { href: "/doctors", label: "Doctor Consultation" },
       { href: "/nursing", label: "Home Nursing" },
+      { href: "/lab-tests", label: "Lab Tests" },
     ],
   },
   {
