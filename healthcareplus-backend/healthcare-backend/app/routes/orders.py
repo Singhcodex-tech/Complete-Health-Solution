@@ -114,7 +114,7 @@ def create_order(
     lab_note = f" across {lab_count} labs" if lab_count > 1 else ""
     send_sms(
         current_user.phone,
-        f"HealthCare+: Order placed for {len(tests)} test(s){lab_note}, total Rs.{order.total_amount:.0f}. "
+        f"Jeevan: Order placed for {len(tests)} test(s){lab_note}, total Rs.{order.total_amount:.0f}. "
         f"We'll assign a rider for pickup on {order.pickup_date} at {order.pickup_time}.",
     )
 
@@ -174,7 +174,7 @@ def assign_rider(
 
     send_sms(
         rider.phone,
-        f"HealthCare+: New pickup assigned — order #{order.id[:8]}, "
+        f"Jeevan: New pickup assigned — order #{order.id[:8]}, "
         f"{order.pickup_date} at {order.pickup_time}, address: {order.pickup_address}.",
     )
     return _load(db, order.id)

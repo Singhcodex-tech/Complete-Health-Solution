@@ -90,7 +90,7 @@ export default function RiderDashboardPage() {
       <GuardCard
         icon={LogIn}
         title="Log in required"
-        message="This dashboard is for HealthCare+ riders only."
+        message="This dashboard is for Jeevan riders only."
         cta={{ href: "/rider/login", label: "Rider Log In" }}
       />
     );

@@ -1,6 +1,6 @@
-# HealthCare+ API — Backend Skeleton (Step 1)
+# Jeevan API — Backend Skeleton (Step 1)
 
-FastAPI backend for the HealthCare+ platform. This is the **first module**
+FastAPI backend for the Jeevan platform. This is the **first module**
 of the full build: auth, users, patients, doctors, and a universal booking
 system. Ambulance, medicine delivery, lab tests, nursing, home care and
 insurance modules will be added on top of this in later steps.

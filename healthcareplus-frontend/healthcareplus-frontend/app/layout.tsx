@@ -27,9 +27,9 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HealthCare+ | Premium Care, At Your Doorstep",
+  title: "Jeevan | Premium Care, At Your Doorstep",
   description:
-    "HealthCare+ connects patients with doctors, nurses, ambulances, diagnostics and home care — all in one trusted platform.",
+    "Jeevan connects patients with doctors, nurses, ambulances, diagnostics and home care — all in one trusted platform.",
 };
 
 export default function RootLayout({

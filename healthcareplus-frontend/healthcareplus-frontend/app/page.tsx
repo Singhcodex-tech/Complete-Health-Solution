@@ -170,7 +170,7 @@ export default function Home() {
         <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-end">
           <SectionHeading
             eyebrow="What we offer"
-            title="Every service your family needs"
+            title="Every Medical service your family needs"
             description="From routine diagnostics to critical home ICU setups — tap a tile to see what's inside."
           />
           <Link
@@ -193,9 +193,9 @@ export default function Home() {
         <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-14 px-5 md:px-8 lg:grid-cols-2">
           <div>
             <SectionHeading
-              eyebrow="About HealthCare+"
+              eyebrow="About Jeevan"
               title="Built by clinicians. Designed for families."
-              description="HealthCare+ began with a simple frustration: getting reliable medical care at home shouldn't take a dozen phone calls. Today, we coordinate doctors, nurses, diagnostics and emergency response through one platform — vetted, tracked, and available around the clock."
+              description="Jeevan began with a simple frustration: getting reliable medical care at home shouldn't take a dozen phone calls. Today, we coordinate doctors, nurses, diagnostics and emergency response through one platform — vetted, tracked, and available around the clock."
             />
             <div className="mt-8 grid grid-cols-2 gap-6">
               <div>

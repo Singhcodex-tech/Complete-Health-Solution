@@ -31,7 +31,7 @@ logging.basicConfig(
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="REST API powering the HealthCare+ platform — auth, patients, "
+    description="REST API powering the Jeevan platform — auth, patients, "
     "doctors and bookings, with more modules added incrementally.",
     version="0.1.0",
     docs_url="/docs",

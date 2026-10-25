@@ -255,6 +255,8 @@ function BookingForm() {
 
       <button
         type="button"
+        role="switch"
+        aria-checked={emergency}
         onClick={() => setEmergency((v) => !v)}
         className={`mt-6 flex w-full items-center justify-between rounded-xl border px-4 py-3.5 transition-colors ${
           emergency ? "border-emergency bg-emergency-soft" : "border-line bg-paper"
@@ -267,13 +269,14 @@ function BookingForm() {
           </span>
         </span>
         <span
-          className={`relative h-6 w-11 rounded-full transition-colors ${
+          aria-hidden
+          className={`relative block h-6 w-11 shrink-0 rounded-full transition-colors ${
             emergency ? "bg-emergency" : "bg-line"
           }`}
         >
           <span
-            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-              emergency ? "translate-x-5" : "translate-x-0.5"
+            className={`absolute top-0.5 block h-5 w-5 rounded-full bg-white shadow transition-[left] duration-200 ${
+              emergency ? "left-[22px]" : "left-0.5"
             }`}
           />
         </span>

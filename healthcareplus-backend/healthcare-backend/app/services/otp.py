@@ -67,7 +67,7 @@ def create_and_send_otp(
 
     label = _PURPOSE_LABELS.get(purpose, purpose.value)
     message = (
-        f"HealthCare+: Your OTP for {label} is {code}. "
+        f"Jeevan: Your OTP for {label} is {code}. "
         f"Valid for {OTP_EXPIRE_MINUTES} minutes. Do not share this code with anyone."
     )
     send_sms(to_phone, message)

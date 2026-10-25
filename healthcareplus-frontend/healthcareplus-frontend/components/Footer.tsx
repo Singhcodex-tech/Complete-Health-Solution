@@ -39,7 +39,7 @@ export default function Footer() {
             <div className="flex items-center gap-2.5">
               <span className="h-3 w-3 rounded-full bg-accent" />
               <span className="font-display text-xl font-semibold text-ink">
-                HealthCare<span className="text-primary">+</span>
+                Jeevan
               </span>
             </div>
             <p className="mt-4 max-w-xs text-[14.5px] leading-relaxed text-ink-soft">
@@ -93,7 +93,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-8 flex flex-col items-center justify-between gap-3 border-t border-line pt-6 text-[13px] text-ink-soft sm:flex-row">
-          <p>© {new Date().getFullYear()} HealthCare+. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Jeevan. All rights reserved.</p>
           <div className="flex gap-5">
             <Link href="#" className="hover:text-primary">Privacy Policy</Link>
             <Link href="#" className="hover:text-primary">Terms of Service</Link>

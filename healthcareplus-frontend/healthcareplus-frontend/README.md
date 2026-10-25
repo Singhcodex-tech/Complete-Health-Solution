@@ -1,4 +1,4 @@
-# HealthCare+ — Frontend Prototype
+# Jeevan — Frontend Prototype
 
 A premium, investor-ready frontend prototype for a healthcare platform —
 built for demos to hospitals, clinics, doctors and investors. **No backend,

@@ -73,7 +73,7 @@ function LoginForm() {
 
         <div className="relative">
           <span className="font-display text-2xl font-semibold text-white">
-            HealthCare<span className="text-accent">+</span>
+            Jeevan
           </span>
           <h1 className="mt-16 max-w-md font-display text-4xl font-semibold leading-tight text-white">
             Care that comes to you, whenever you need it.
@@ -245,7 +245,7 @@ function LoginForm() {
               <p className="mt-6 text-center text-[13px] text-ink-soft">
                 {mode === "login" ? (
                   <>
-                    New to HealthCare+?{" "}
+                    New to Jeevan?{" "}
                     <button
                       onClick={() => setMode("register")}
                       className="font-semibold text-primary"

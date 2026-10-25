@@ -60,7 +60,7 @@ function RiderLoginForm() {
             Rider Sign In
           </h1>
           <p className="mt-1.5 text-[13.5px] text-ink-soft">
-            Sample pickup & delivery — HealthCare+ field app.
+            Sample pickup & delivery — Jeevan field app.
           </p>
         </div>
 

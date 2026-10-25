@@ -59,7 +59,7 @@ export default function Navbar() {
             <span className="relative inline-flex h-3 w-3 rounded-full bg-accent" />
           </span>
           <span className="font-display text-xl font-semibold tracking-tight text-ink">
-            HealthCare<span className="text-primary">+</span>
+            Jeevan
           </span>
         </Link>
 

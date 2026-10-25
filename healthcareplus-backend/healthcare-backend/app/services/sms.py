@@ -48,7 +48,7 @@ def send_sms(to_phone: str, message: str) -> bool:
 
 def send_booking_confirmation_sms(to_phone: str, service_name: str, date: str, time: str) -> bool:
     message = (
-        f"HealthCare+: Your booking for {service_name} on {date} at {time} "
+        f"Jeevan: Your booking for {service_name} on {date} at {time} "
         f"has been received. Our care team will confirm shortly. For "
         f"emergencies, call 108."
     )

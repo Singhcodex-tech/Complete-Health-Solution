@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Video,
   Ambulance,
-  Droplets,
   UserRound,
   Pill,
   UserCog,
@@ -35,7 +34,7 @@ export type Service = {
 
 export const services: Service[] = [
   { slug: "blood-test-booking", name: "Blood Test Booking", category: "Diagnostics", icon: TestTube2, description: "Certified phlebotomists collect samples at home with reports delivered digitally.", price: "From ₹299", tint: "primary" },
-  { slug: "home-nursing-care", name: "Home Nursing Care", category: "Nursing", icon: HeartPulse, description: "24-hour or 12-hour trained nurses for post-surgical, elderly and critical care.", price: "From ₹1,299/day", tint: "accent" },
+  { slug: "home-nursing-care", name: "Home Nursing Care", category: "Nursing", icon: HeartPulse, description: "12-hour trained nurses for post-surgical, elderly and critical care.", price: "From ₹1,299/day", tint: "accent" },
   { slug: "foleys-catheterization", name: "Foley's Catheterization", category: "Clinical Procedure", icon: Syringe, description: "Safe, sterile catheter insertion and care performed by licensed nurses.", price: "From ₹499", tint: "primary" },
   { slug: "ryles-tube-insertion", name: "Ryle's Tube Insertion", category: "Clinical Procedure", icon: Syringe, description: "Nasogastric tube placement for feeding or decompression, done at home.", price: "From ₹549", tint: "primary" },
   { slug: "iv-cannulation", name: "IV Cannulation", category: "Clinical Procedure", icon: Syringe, description: "Painless intravenous line placement for fluids, medication or transfusion.", price: "From ₹399", tint: "accent" },
@@ -56,7 +55,6 @@ export const services: Service[] = [
   { slug: "medical-insurance-assistance", name: "Medical Insurance Assistance", category: "Insurance", icon: ShieldCheck, description: "End-to-end help with cashless claims, documentation and approvals.", price: "Free consultation", tint: "primary" },
   { slug: "online-doctor-consultation", name: "Online Doctor Consultation", category: "Consultation", icon: Video, description: "Video consultations with specialists across 20+ departments.", price: "From ₹399", tint: "accent" },
   { slug: "ambulance-services", name: "Ambulance Services", category: "Emergency", icon: Ambulance, description: "Road, railway and air ambulance dispatch for every emergency.", price: "From ₹799", tint: "primary" },
-  { slug: "blood-donation", name: "Blood Donation", category: "Emergency", icon: Droplets, description: "Connect with verified donors or organise donation camps quickly.", price: "Free service", tint: "accent" },
   { slug: "doctor-home-visit", name: "Doctor Home Visit", category: "Consultation", icon: Stethoscope, description: "Qualified physicians visit your home for examination and treatment.", price: "From ₹999", tint: "primary" },
   { slug: "medicine-delivery", name: "Medicine Delivery", category: "Pharmacy", icon: Pill, description: "Prescription and OTC medicines delivered to your doorstep same-day.", price: "Free above ₹499", tint: "accent" },
   { slug: "female-patient-attendant", name: "Female Patient Attendant", category: "Nursing", icon: UserRound, description: "Compassionate female attendants for personal and daily-living support.", price: "From ₹999/day", tint: "primary" },
@@ -293,10 +291,10 @@ export const homeOfferTiles: OfferTile[] = [
     title: "Nursing Care",
     icon: HeartPulse,
     tint: "accent",
-    description: "24×7 or 12-hour nursing support plus every clinical procedure done safely at home.",
+    description: "12-hour nursing support plus every clinical procedure done safely at home.",
     bookSlug: "home-nursing-care",
     subItems: [
-      { label: "24×7 / 12 hrs Nursing Care", slug: "home-nursing-care" },
+      { label: "12 hrs Nursing Care", slug: "home-nursing-care" },
       { label: "Foley's Catheterisation", slug: "foleys-catheterization" },
       { label: "Ryle's Tube Insertion", slug: "ryles-tube-insertion" },
       { label: "IV Cannulation", slug: "iv-cannulation" },
@@ -345,15 +343,6 @@ export const homeOfferTiles: OfferTile[] = [
       { label: "Railway Ambulance" },
       { label: "Air Ambulance" },
     ],
-  },
-  {
-    slug: "blood-donor",
-    title: "Blood Donor",
-    icon: Droplets,
-    tint: "primary",
-    description: "Connect with verified donors or organise donation camps quickly.",
-    price: "Free service",
-    bookSlug: "blood-donation",
   },
   {
     slug: "doctor-home-visit",
@@ -417,13 +406,13 @@ export const doctors: Doctor[] = [
 export const testimonials = [
   { name: "Sunita Reddy", role: "Daughter of a patient, Hyderabad", quote: "The home nurse arrived within two hours of booking and stayed with my father through his entire recovery. It felt like having a hospital ward at home.", rating: 5 },
   { name: "Manoj Chatterjee", role: "Patient, Kolkata", quote: "Booked a portable X-ray at 11pm and a technician showed up in under an hour. Reports were in my inbox before morning.", rating: 5 },
-  { name: "Farah Sheikh", role: "Caregiver, Mumbai", quote: "Coordinating ICU equipment and a critical-care nurse used to take days. HealthCare+ set it up for my mother in an afternoon.", rating: 4.5 },
+  { name: "Farah Sheikh", role: "Caregiver, Mumbai", quote: "Coordinating ICU equipment and a critical-care nurse used to take days. Jeevan set it up for my mother in an afternoon.", rating: 4.5 },
   { name: "Dev Malhotra", role: "Patient, Delhi", quote: "The online consultation felt as thorough as an in-clinic visit, and the prescription was couriered with medicines the same evening.", rating: 5 },
 ];
 
 export const faqs = [
   { q: "How quickly can a nurse or doctor reach my home?", a: "In most metro areas, our teams reach you within 60–90 minutes for standard bookings and under 30 minutes for emergencies, depending on your location and staff availability." },
-  { q: "Are your nurses and doctors verified?", a: "Every doctor, nurse and attendant on HealthCare+ is background-verified, licensed and trained, with credentials reviewed before onboarding." },
+  { q: "Are your nurses and doctors verified?", a: "Every doctor, nurse and attendant on Jeevan is background-verified, licensed and trained, with credentials reviewed before onboarding." },
   { q: "Can I get cashless insurance for home care services?", a: "Yes. Our insurance desk works with major insurers to guide you through cashless claims and documentation for eligible services." },
   { q: "What areas do you currently service?", a: "We currently operate across major metro and tier-2 cities, with ambulance and emergency dispatch covering an even wider radius." },
   { q: "Can I reschedule or cancel a booking?", a: "Absolutely — bookings can be rescheduled or cancelled from your dashboard up to 2 hours before the scheduled time at no charge." },
@@ -431,7 +420,7 @@ export const faqs = [
 
 export const nursingPlans = [
   { title: "12-Hour Day Nurse", price: "₹1,299", period: "/ day", features: ["Vitals monitoring", "Medication support", "Mobility assistance", "Daily progress notes"], highlight: false },
-  { title: "24-Hour Full-Time Nurse", price: "₹2,199", period: "/ day", features: ["Round-the-clock care", "Vitals & medication", "Hygiene & mobility support", "Doctor coordination"], highlight: true },
+  { title: "12-Hour Night Nurse", price: "₹1,299", period: "/ night", features: ["Overnight monitoring", "Vitals & medication", "Hygiene & mobility support", "Doctor coordination"], highlight: true },
   { title: "ICU-Trained Nurse", price: "₹2,999", period: "/ day", features: ["Critical care experience", "Ventilator familiarity", "Continuous monitoring", "Emergency response ready"], highlight: false },
   { title: "NICU-Trained Nurse", price: "₹3,199", period: "/ day", features: ["Newborn specialised care", "Feeding & hygiene support", "Growth monitoring", "Pediatrician coordination"], highlight: false },
   { title: "Senior Care Companion", price: "₹1,099", period: "/ day", features: ["Companionship & mobility", "Medication reminders", "Light housekeeping", "Daily wellness checks"], highlight: false },

@@ -1,58 +1,35 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
 import { X } from "lucide-react";
-import ServiceCard from "@/components/ServiceCard";
+import OfferTileCard from "@/components/OfferTileCard";
 import SectionHeading from "@/components/SectionHeading";
-import { services, serviceCategories } from "@/lib/data";
+import { homeOfferTiles } from "@/lib/data";
 
 function ServicesPageContent() {
-  // The search box lives in the header now; it sends people here as /services?q=…
+  // The search box lives in the header; it sends people here as /services?q=…
   const query = (useSearchParams().get("q") ?? "").trim();
-  const [active, setActive] = useState("All");
 
   const filtered = useMemo(() => {
-    const byCategory = active === "All" ? services : services.filter((s) => s.category === active);
     const q = query.toLowerCase();
-    if (!q) return byCategory;
-    return byCategory.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q)
+    if (!q) return homeOfferTiles;
+    return homeOfferTiles.filter(
+      (t) =>
+        t.title.toLowerCase().includes(q) ||
+        t.description.toLowerCase().includes(q) ||
+        (t.subItems ?? []).some((s) => s.label.toLowerCase().includes(q))
     );
-  }, [active, query]);
+  }, [query]);
 
   return (
     <div className="mx-auto max-w-7xl px-5 pb-12 pt-2 sm:pt-4 md:px-8 md:pb-16 md:pt-6">
-      {/* Heading on the left, filters on the right (desktop) — no empty band beside the title */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
-        <SectionHeading
-          eyebrow={`${services.length} services, one platform`}
-          title="Explore all our services"
-          description="Diagnostics, nursing, clinical procedures, emergency response and more — all delivered to your doorstep."
-          className="lg:max-w-md lg:shrink-0"
-        />
-
-        <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] lg:mx-0 lg:max-w-3xl lg:flex-wrap lg:justify-end lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden">
-          {["All", ...serviceCategories].map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActive(cat)}
-              className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-[13px] font-medium transition-colors ${
-                active === cat
-                  ? "border-primary bg-primary text-white"
-                  : "border-line bg-paper-raised text-ink-soft hover:border-primary hover:text-primary"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
+      <SectionHeading
+        eyebrow={`${homeOfferTiles.length} services, one platform`}
+        title="Explore all our services"
+        description="Blood tests, nursing, doctors, ambulance and more — all delivered to your doorstep."
+      />
 
       {query && (
         <div className="mt-4 flex flex-wrap items-center gap-2 text-[13.5px] text-ink-soft">
@@ -70,14 +47,11 @@ function ServicesPageContent() {
       )}
 
       {filtered.length > 0 ? (
-        <motion.div
-          layout
-          className="mt-5 grid grid-cols-1 gap-5 sm:mt-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-        >
-          {filtered.map((s, i) => (
-            <ServiceCard key={s.slug} service={s} index={i} />
+        <div className="mt-6 grid grid-cols-1 items-start gap-5 sm:mt-8 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((tile, i) => (
+            <OfferTileCard key={tile.slug} tile={tile} index={i} />
           ))}
-        </motion.div>
+        </div>
       ) : (
         <div className="mt-14 flex flex-col items-center justify-center text-center">
           <p className="text-[15px] font-medium text-ink">No services match “{query}”.</p>
